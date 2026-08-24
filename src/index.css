@@ -58,7 +58,7 @@ html, body {
   transition: all 0.3s ease;
 }
 
-/* Inner Content Wrapper - Optimized Spacing for Desktop & Mobile */
+/* Inner Content Wrapper - Acquires Full Width on Mobile with Zero Empty Side Margins */
 .content-wrapper {
   width: 100%;
   max-width: 1400px;
@@ -70,7 +70,7 @@ html, body {
 
 @media (max-width: 640px) {
   .content-wrapper {
-    padding: 12px 10px 80px 10px !important;
+    padding: 8px 4px 80px 4px !important;
   }
 }
 
@@ -86,16 +86,11 @@ html, body {
   }
 }
 
-@keyframes floatEmblem {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-8px) rotate(2deg); }
-}
-
 .animate-fade-in {
   animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Luxe Glass Card - Fits Snugly on Mobile Screens */
+/* Luxe Glass Card - 100% Full Width Acquisition on Mobile Screens */
 .luxe-card {
   background: var(--card-bg);
   backdrop-filter: blur(20px);
@@ -106,12 +101,16 @@ html, body {
   box-shadow: var(--shadow-md);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
+  width: 100%;
 }
 
 @media (max-width: 640px) {
   .luxe-card {
-    padding: 16px 14px !important;
-    border-radius: 18px !important;
+    padding: 14px 10px !important;
+    border-radius: 16px !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
   }
 }
 
@@ -219,7 +218,7 @@ html, body {
   bottom: 14px;
   left: 50%;
   transform: translateX(-50%);
-  width: calc(100% - 24px);
+  width: calc(100% - 16px);
   max-width: 680px;
   height: 66px;
   background: rgba(255, 255, 255, 0.95);
@@ -296,14 +295,14 @@ html, body {
     display: flex !important;
   }
   .bottom-nav {
-    display: none !important; /* Bottom nav replaced by clean Drawer Menu on Mobile as requested */
+    display: none !important;
   }
   .app-container {
     padding-bottom: 20px !important;
   }
 }
 
-/* Modal Overlay & Pure Centered Popups (Guaranteed 100% Horizontal & Vertical Centering) */
+/* Modal Overlay & Pure Centered Popups */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -342,13 +341,13 @@ html, body {
   .modal-overlay {
     align-items: center;
     justify-content: center;
-    padding: 12px !important;
+    padding: 8px !important;
   }
   .modal-sheet {
-    border-radius: 24px !important;
-    padding: 20px 16px !important;
+    border-radius: 22px !important;
+    padding: 18px 14px !important;
     max-height: 90vh !important;
-    width: calc(100% - 8px) !important;
+    width: calc(100% - 4px) !important;
     margin: auto !important;
   }
 }

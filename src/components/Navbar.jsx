@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, Crown, Calendar, LayoutDashboard, HeartHandshake, ArrowDownCircle, ArrowUpCircle, Flame, Landmark, BarChart3, ShieldCheck, Eye, RefreshCw, Settings } from 'lucide-react';
+import { Menu, Calendar, LayoutDashboard, HeartHandshake, ArrowDownCircle, ArrowUpCircle, Flame, Landmark, BarChart3, ShieldCheck, Eye, RefreshCw, Settings } from 'lucide-react';
 import { db } from '../services/db';
 import MobileDrawer from './MobileDrawer';
 
@@ -30,7 +30,7 @@ export default function Navbar({ isAdmin, activeYear, activeTab, onChangeTab, on
       <header style={{
         background: 'linear-gradient(135deg, #1E293B 0%, #0F172A 100%)',
         color: '#ffffff',
-        padding: '12px 18px',
+        padding: '10px 12px',
         position: 'sticky',
         top: 0,
         left: 0,
@@ -39,33 +39,37 @@ export default function Navbar({ isAdmin, activeYear, activeTab, onChangeTab, on
         boxShadow: '0 8px 30px rgba(15, 23, 42, 0.35)',
         borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-          {/* Brand Logo & Year Dropdown */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-            <div style={{
-              width: 38, height: 38, borderRadius: 12,
-              background: 'linear-gradient(135deg, #FF5722 0%, #FF9100 100%)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 14px rgba(255, 87, 34, 0.4)'
-            }}>
-              <Crown size={18} color="#ffffff" />
-            </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          {/* Brand Logo with Ganesha Murti Emblem & Title */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <img
+              src="./ganesh_icon.png"
+              alt="Ganesh Murti Emblem"
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 12,
+                objectFit: 'cover',
+                border: '1.5px solid #FFD700',
+                boxShadow: '0 4px 14px rgba(255, 87, 34, 0.4)'
+              }}
+            />
 
             <div>
               <h1 style={{ fontSize: 16, fontWeight: 900, margin: 0, color: '#ffffff', letterSpacing: -0.3 }}>
-                Rajmudra Mandal
+                Rajmudra Group
               </h1>
               
               {/* Year Dropdown */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
                 <Calendar size={11} color="#FF9100" />
                 <select
                   value={activeYear}
                   onChange={handleSelectYear}
                   style={{
-                    background: 'rgba(255, 255, 255, 0.1)',
+                    background: 'rgba(255, 255, 255, 0.12)',
                     color: '#FFD700',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
                     borderRadius: 8,
                     fontSize: 11,
                     fontWeight: 800,
@@ -158,7 +162,7 @@ export default function Navbar({ isAdmin, activeYear, activeTab, onChangeTab, on
             )}
           </div>
 
-          {/* Mobile Menu Button (Takes place of crammed top icons on Mobile view) */}
+          {/* Mobile Menu Button */}
           <button
             className="mobile-menu-btn"
             onClick={() => setDrawerOpen(true)}

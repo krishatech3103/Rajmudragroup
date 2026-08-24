@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Crown, ShieldCheck, Eye, RefreshCw, Settings, LayoutDashboard, HeartHandshake, ArrowDownCircle, ArrowUpCircle, Flame, Landmark, BarChart3 } from 'lucide-react';
+import { X, ShieldCheck, Eye, RefreshCw, Settings, LayoutDashboard, HeartHandshake, ArrowDownCircle, ArrowUpCircle, Flame, Landmark, BarChart3 } from 'lucide-react';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -35,22 +35,27 @@ export default function MobileDrawer({ isOpen, onClose, isAdmin, activeTab, onCh
         }}
       >
         <div>
-          {/* Header Card with User Role */}
+          {/* Header Card with Ganesha Murti Logo & User Role */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             paddingBottom: 16, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.1)'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{
-                width: 36, height: 36, borderRadius: 12,
-                background: 'linear-gradient(135deg, #FF5722 0%, #FF9100 100%)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>
-                <Crown size={18} color="#ffffff" />
-              </div>
+              <img
+                src="./ganesh_icon.png"
+                alt="Ganesh Murti"
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 14,
+                  objectFit: 'cover',
+                  border: '1.5px solid #FFD700',
+                  boxShadow: '0 4px 14px rgba(255, 87, 34, 0.4)'
+                }}
+              />
               <div>
                 <h3 style={{ fontSize: 15, fontWeight: 900, color: '#ffffff', margin: 0 }}>
-                  राजमुद्रा मंडळ
+                  Rajmudra Group
                 </h3>
                 <div style={{
                   display: 'inline-flex', alignItems: 'center', gap: 4,
