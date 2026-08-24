@@ -87,7 +87,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
   };
 
   return (
-    <div style={{ padding: 20 }} className="animate-fade-in">
+    <div style={{ padding: 20, fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif' }} className="animate-fade-in">
       {/* Banner */}
       <div style={{
         background: 'linear-gradient(135deg, #059669 0%, #10B981 50%, #34D399 100%)',
@@ -97,20 +97,25 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
         display: 'flex',
         alignItems: 'center',
         justify: 'space-between',
+        flexWrap: 'wrap',
+        gap: 16,
         marginBottom: 18,
         boxShadow: '0 12px 30px rgba(16, 185, 129, 0.35)'
       }}>
-        <div>
+        <div style={{ flex: 1, minWidth: 180 }}>
           <h2 style={{ fontSize: 18, fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <ArrowDownCircle size={22} color="#A7F3D0" /> Revenue & Other Income
           </h2>
-          <span style={{ fontSize: 12, opacity: 0.85, fontWeight: 600 }}>Festival Year {activeYear}</span>
+          <span style={{ fontSize: 12, opacity: 0.85, fontWeight: 600, display: 'block', marginTop: 4 }}>
+            Festival Year {activeYear}
+          </span>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <p style={{ fontSize: 24, fontWeight: 900, margin: 0 }}>
-            ₹{totalJama.toLocaleString('en-IN')}
+
+        <div style={{ textAlign: 'right', minWidth: 'fit-content' }}>
+          <p style={{ fontSize: 24, fontWeight: 900, margin: 0, letterSpacing: -0.5 }}>
+            ₹ {totalJama.toLocaleString('en-IN')}
           </p>
-          <span style={{ fontSize: 11, background: 'rgba(255, 255, 255, 0.2)', padding: '2px 10px', borderRadius: 12, fontWeight: 700 }}>
+          <span style={{ fontSize: 11, background: 'rgba(255, 255, 255, 0.25)', padding: '3px 10px', borderRadius: 12, fontWeight: 800, marginTop: 4, display: 'inline-block' }}>
             {jamaList.length} Entries
           </span>
         </div>
@@ -168,12 +173,12 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
                 <div style={{
                   width: 48, height: 48, borderRadius: 16, background: '#ECFDF5',
                   color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  border: '1px solid #A7F3D0'
+                  border: '1px solid #A7F3D0', flexShrink: 0
                 }}>
                   <ArrowDownCircle size={24} />
                 </div>
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <h4 style={{ fontSize: 16, fontWeight: 900, margin: 0, color: '#0F172A' }}>{j.title}</h4>
                     {j.is_locked && (
                       <span style={{ background: '#FFF7ED', border: '1px solid #FFEDD5', color: '#D84315', padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -181,15 +186,15 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
                       </span>
                     )}
                   </div>
-                  <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, margin: '3px 0 0 0' }}>
+                  <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, margin: '4px 0 0 0' }}>
                     {j.category} • {new Date(j.date).toLocaleDateString('en-IN')} {j.note ? `• ${j.note}` : ''}
                   </p>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                 <span style={{ fontSize: 17, fontWeight: 900, color: '#059669', marginRight: 4 }}>
-                  ₹{Number(j.amount).toLocaleString('en-IN')}
+                  ₹ {Number(j.amount).toLocaleString('en-IN')}
                 </span>
 
                 {isAdmin && !j.is_locked && (

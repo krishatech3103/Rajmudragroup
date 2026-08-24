@@ -100,7 +100,7 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate }) {
   };
 
   return (
-    <div style={{ padding: 20 }} className="animate-fade-in">
+    <div style={{ padding: 20, fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif' }} className="animate-fade-in">
       {/* Banner */}
       <div style={{
         background: 'linear-gradient(135deg, #DC2626 0%, #EF4444 50%, #F87171 100%)',
@@ -110,20 +110,25 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate }) {
         display: 'flex',
         alignItems: 'center',
         justify: 'space-between',
+        flexWrap: 'wrap',
+        gap: 16,
         marginBottom: 18,
         boxShadow: '0 12px 30px rgba(239, 68, 68, 0.35)'
       }}>
-        <div>
+        <div style={{ flex: 1, minWidth: 180 }}>
           <h2 style={{ fontSize: 18, fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <ArrowUpCircle size={22} color="#FCA5A5" /> Mandal Expenses
           </h2>
-          <span style={{ fontSize: 12, opacity: 0.85, fontWeight: 600 }}>Festival Year {activeYear}</span>
+          <span style={{ fontSize: 12, opacity: 0.85, fontWeight: 600, display: 'block', marginTop: 4 }}>
+            Festival Year {activeYear}
+          </span>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <p style={{ fontSize: 24, fontWeight: 900, margin: 0 }}>
-            ₹{totalKharch.toLocaleString('en-IN')}
+
+        <div style={{ textAlign: 'right', minWidth: 'fit-content' }}>
+          <p style={{ fontSize: 24, fontWeight: 900, margin: 0, letterSpacing: -0.5 }}>
+            ₹ {totalKharch.toLocaleString('en-IN')}
           </p>
-          <span style={{ fontSize: 11, background: 'rgba(255, 255, 255, 0.2)', padding: '2px 10px', borderRadius: 12, fontWeight: 700 }}>
+          <span style={{ fontSize: 11, background: 'rgba(255, 255, 255, 0.25)', padding: '3px 10px', borderRadius: 12, fontWeight: 800, marginTop: 4, display: 'inline-block' }}>
             {kharchList.length} Entries
           </span>
         </div>
@@ -185,12 +190,12 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate }) {
                 <div style={{
                   width: 48, height: 48, borderRadius: 16, background: '#FEF2F2',
                   color: '#DC2626', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  border: '1px solid #FCA5A5'
+                  border: '1px solid #FCA5A5', flexShrink: 0
                 }}>
                   <ArrowUpCircle size={24} />
                 </div>
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <h4 style={{ fontSize: 16, fontWeight: 900, margin: 0, color: '#0F172A' }}>{k.title}</h4>
                     {k.is_locked && (
                       <span style={{ background: '#FFF7ED', border: '1px solid #FFEDD5', color: '#D84315', padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -198,15 +203,15 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate }) {
                       </span>
                     )}
                   </div>
-                  <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, margin: '3px 0 0 0' }}>
+                  <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, margin: '4px 0 0 0' }}>
                     {k.category} • {new Date(k.date).toLocaleDateString('en-IN')} {k.note ? `• ${k.note}` : ''}
                   </p>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                 <span style={{ fontSize: 17, fontWeight: 900, color: '#DC2626', marginRight: 4 }}>
-                  ₹{Number(k.amount).toLocaleString('en-IN')}
+                  ₹ {Number(k.amount).toLocaleString('en-IN')}
                 </span>
 
                 {isAdmin && !k.is_locked && (

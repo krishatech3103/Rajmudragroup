@@ -27,9 +27,13 @@ export default function App() {
   const handlePinSuccess = (adminFlag) => {
     setIsAdmin(adminFlag);
     setIsAuthenticated(true);
+    const s = db.getSettings();
+    setActiveYear(s.active_year || '2026-27');
   };
 
   const handleRefresh = () => {
+    const s = db.getSettings();
+    setActiveYear(s.active_year || '2026-27');
     setRefreshKey(prev => prev + 1);
   };
 
@@ -44,6 +48,7 @@ export default function App() {
         activeYear={activeYear}
         onOpenSettings={() => setShowSettings(true)}
         onRefresh={handleRefresh}
+        onYearChange={(y) => setActiveYear(y)}
       />
 
       <main key={refreshKey} className="content-wrapper">

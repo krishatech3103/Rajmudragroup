@@ -102,7 +102,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate }) {
   };
 
   return (
-    <div style={{ padding: 20 }} className="animate-fade-in">
+    <div style={{ padding: 20, fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif' }} className="animate-fade-in">
       {/* Top Banner */}
       <div style={{
         background: 'linear-gradient(135deg, #1D4ED8 0%, #2563EB 50%, #3B82F6 100%)',
@@ -112,20 +112,25 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate }) {
         display: 'flex',
         alignItems: 'center',
         justify: 'space-between',
+        flexWrap: 'wrap',
+        gap: 16,
         marginBottom: 18,
         boxShadow: '0 12px 30px rgba(37, 99, 235, 0.35)'
       }}>
-        <div>
+        <div style={{ flex: 1, minWidth: 180 }}>
           <h2 style={{ fontSize: 18, fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <HeartHandshake size={22} color="#93C5FD" /> Member Donations
           </h2>
-          <span style={{ fontSize: 12, opacity: 0.85, fontWeight: 600 }}>Festival Year {activeYear}</span>
+          <span style={{ fontSize: 12, opacity: 0.85, fontWeight: 600, display: 'block', marginTop: 4 }}>
+            Festival Year {activeYear}
+          </span>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <p style={{ fontSize: 24, fontWeight: 900, margin: 0 }}>
-            ₹{totalVargani.toLocaleString('en-IN')}
+
+        <div style={{ textAlign: 'right', minWidth: 'fit-content' }}>
+          <p style={{ fontSize: 24, fontWeight: 900, margin: 0, letterSpacing: -0.5 }}>
+            ₹ {totalVargani.toLocaleString('en-IN')}
           </p>
-          <span style={{ fontSize: 11, background: 'rgba(255, 255, 255, 0.2)', padding: '2px 10px', borderRadius: 12, fontWeight: 700 }}>
+          <span style={{ fontSize: 11, background: 'rgba(255, 255, 255, 0.25)', padding: '3px 10px', borderRadius: 12, fontWeight: 800, marginTop: 4, display: 'inline-block' }}>
             {varganiList.length} Receipts
           </span>
         </div>
@@ -174,7 +179,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate }) {
                     background: 'linear-gradient(135deg, #FFEDD5, #FED7AA)',
                     color: '#D84315', fontWeight: 900, fontSize: 18, border: '1px solid rgba(255, 87, 34, 0.2)',
                     cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: '0 4px 12px rgba(255, 87, 34, 0.15)'
+                    boxShadow: '0 4px 12px rgba(255, 87, 34, 0.15)', flexShrink: 0
                   }}
                   title="Click to view full member history"
                 >
@@ -183,15 +188,15 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate }) {
 
                 <div>
                   <h4 style={{ fontSize: 16, fontWeight: 900, margin: 0, color: '#0F172A' }}>{v.member_name}</h4>
-                  <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, margin: '3px 0 0 0' }}>
+                  <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, margin: '4px 0 0 0' }}>
                     {new Date(v.date).toLocaleDateString('en-IN')} {v.note ? `• ${v.note}` : ''}
                   </p>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                 <span style={{ fontSize: 17, fontWeight: 900, color: '#1D4ED8', marginRight: 4 }}>
-                  ₹{Number(v.amount).toLocaleString('en-IN')}
+                  ₹ {Number(v.amount).toLocaleString('en-IN')}
                 </span>
 
                 <button

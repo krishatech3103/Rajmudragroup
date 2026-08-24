@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { db } from '../services/db';
-import { Crown, Lock, User, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { Crown, Lock, User, Eye, EyeOff, ArrowRight, Calendar } from 'lucide-react';
+
+const AVAILABLE_YEARS = ['2026-27', '2025-26', '2024-25', '2027-28', '2028-29'];
 
 export default function PinModal({ onSuccess }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [selectedYear, setSelectedYear] = useState('2026-27');
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
 
@@ -19,10 +22,12 @@ export default function PinModal({ onSuccess }) {
     }
 
     const settings = db.getSettings();
+    const isPreviousYear = (selectedYear === '2024-25' || selectedYear === '2025-26');
 
     // Check Admin
     if (cleanUser === 'admin') {
       if (cleanPass === settings.admin_pin || cleanPass === '1234') {
+        db.setSetting('active_year', selectedYear);
         onSuccess(true); // Admin Mode
       } else {
         setError('Invalid Password for Admin!');
@@ -32,6 +37,11 @@ export default function PinModal({ onSuccess }) {
     // Check Viewer / User
     else if (cleanUser === 'user' || cleanUser === 'viewer') {
       if (cleanPass === settings.viewer_pin || cleanPass === '0000') {
+        if (isPreviousYear) {
+          setError('Access Restricted: Previous financial audit records (2024 & 2025) are visible to Mandal Admin only!');
+          return;
+        }
+        db.setSetting('active_year', selectedYear);
         onSuccess(false); // Viewer Mode
       } else {
         setError('Invalid Password for User!');
@@ -61,12 +71,12 @@ export default function PinModal({ onSuccess }) {
 
       <div style={{ width: '100%', maxWidth: 400, position: 'relative', zIndex: 2 }} className="animate-fade-in">
         {/* Brand Emblem Header */}
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{
             width: 84, height: 84, borderRadius: 28,
             background: 'linear-gradient(135deg, #FF5722 0%, #FF9100 100%)',
             color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 18px auto', boxShadow: '0 14px 40px rgba(255, 87, 34, 0.5)',
+            margin: '0 auto 16px auto', boxShadow: '0 14px 40px rgba(255, 87, 34, 0.5)',
             animation: 'floatEmblem 3s ease-in-out infinite'
           }}>
             <Crown size={44} color="#ffffff" />
@@ -90,7 +100,43 @@ export default function PinModal({ onSuccess }) {
           boxShadow: '0 25px 60px rgba(0, 0, 0, 0.4)'
         }}>
           <form onSubmit={handleLogin}>
-            {/* Free Text Username Input */}
+            {/* Festival Year Selector */}
+            <div style={{ marginBottom: 18 }}>
+              <label style={{
+                display: 'block', fontSize: 12, fontWeight: 800, color: '#CBD5E1',
+                marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.6
+              }}>
+                Festival Year
+              </label>
+
+              <div style={{ position: 'relative' }}>
+                <Calendar size={18} color="#FF9100" style={{ position: 'absolute', left: 16, top: 16 }} />
+                <select
+                  value={selectedYear}
+                  onChange={e => { setSelectedYear(e.target.value); setError(''); }}
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px 14px 46px',
+                    borderRadius: 16,
+                    border: '1.5px solid rgba(255, 255, 255, 0.15)',
+                    background: 'rgba(15, 23, 42, 0.85)',
+                    color: '#ffffff',
+                    fontSize: 15,
+                    fontWeight: 800,
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="2026-27" style={{ background: '#0F172A' }}>Year 2026–27 (Current Default)</option>
+                  <option value="2025-26" style={{ background: '#0F172A' }}>Year 2025–26 (Audit 🔒)</option>
+                  <option value="2024-25" style={{ background: '#0F172A' }}>Year 2024–25 (Audit 🔒)</option>
+                  <option value="2027-28" style={{ background: '#0F172A' }}>Year 2027–28</option>
+                  <option value="2028-29" style={{ background: '#0F172A' }}>Year 2028–29</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Username Input */}
             <div style={{ marginBottom: 18 }}>
               <label style={{
                 display: 'block', fontSize: 12, fontWeight: 800, color: '#CBD5E1',
@@ -101,12 +147,11 @@ export default function PinModal({ onSuccess }) {
 
               <div style={{ position: 'relative' }}>
                 <User size={18} color="#94A3B8" style={{ position: 'absolute', left: 16, top: 16 }} />
-                
                 <input
                   type="text"
                   value={username}
                   onChange={e => { setUsername(e.target.value); setError(''); }}
-                  placeholder="Enter Username..."
+                  placeholder="admin or user"
                   autoFocus
                   style={{
                     width: '100%',
@@ -117,8 +162,7 @@ export default function PinModal({ onSuccess }) {
                     color: '#ffffff',
                     fontSize: 15,
                     fontWeight: 700,
-                    outline: 'none',
-                    transition: 'all 0.25s ease'
+                    outline: 'none'
                   }}
                 />
               </div>
@@ -130,12 +174,11 @@ export default function PinModal({ onSuccess }) {
                 display: 'block', fontSize: 12, fontWeight: 800, color: '#CBD5E1',
                 marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.6
               }}>
-                Password
+                Password / PIN
               </label>
 
               <div style={{ position: 'relative' }}>
                 <Lock size={18} color="#94A3B8" style={{ position: 'absolute', left: 16, top: 16 }} />
-                
                 <input
                   type={showPass ? 'text' : 'password'}
                   value={password}
@@ -150,8 +193,7 @@ export default function PinModal({ onSuccess }) {
                     color: '#ffffff',
                     fontSize: 15,
                     fontWeight: 700,
-                    outline: 'none',
-                    transition: 'all 0.25s ease'
+                    outline: 'none'
                   }}
                 />
 
@@ -171,9 +213,9 @@ export default function PinModal({ onSuccess }) {
 
             {error && (
               <p style={{
-                color: '#F87171', fontSize: 13, fontWeight: 700, marginBottom: 18,
+                color: '#F87171', fontSize: 12, fontWeight: 700, marginBottom: 18,
                 background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)',
-                padding: '10px 14px', borderRadius: 12, textAlign: 'center'
+                padding: '10px 14px', borderRadius: 12, textAlign: 'center', lineHeight: 1.4
               }}>
                 {error}
               </p>

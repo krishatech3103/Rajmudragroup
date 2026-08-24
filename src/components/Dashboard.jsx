@@ -15,12 +15,12 @@ export default function Dashboard({ activeYear }) {
   const pctPaid = memberCount > 0 ? Math.round((paidCount / memberCount) * 100) : 0;
 
   const isPositive = summary.balance >= 0;
-  const fmt = (v) => `₹${Number(v).toLocaleString('en-IN')}`;
+  const fmt = (v) => `₹ ${Number(v).toLocaleString('en-IN')}`;
 
   const latestAarti = aartiList.length > 0 ? aartiList[0] : null;
 
   return (
-    <div style={{ padding: '20px 20px 28px 20px' }} className="animate-fade-in">
+    <div style={{ padding: '20px 20px 28px 20px', fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif' }} className="animate-fade-in">
       {/* Hero Net Balance Metallic Luxury Banner */}
       <div
         style={{
@@ -28,7 +28,7 @@ export default function Dashboard({ activeYear }) {
             ? 'linear-gradient(135deg, #FF5722 0%, #F4511E 40%, #D84315 100%)'
             : 'linear-gradient(135deg, #991B1B 0%, #DC2626 50%, #B91C1C 100%)',
           borderRadius: 28,
-          padding: 26,
+          padding: 24,
           color: '#ffffff',
           boxShadow: isPositive
             ? '0 16px 40px rgba(255, 87, 34, 0.35)'
@@ -48,7 +48,7 @@ export default function Dashboard({ activeYear }) {
           background: 'rgba(255, 179, 0, 0.25)', borderRadius: '50%', filter: 'blur(20px)'
         }} />
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2, gap: 12, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 13, fontWeight: 800, opacity: 0.95, display: 'flex', alignItems: 'center', gap: 7, letterSpacing: 0.8 }}>
             <Wallet size={18} /> NET FESTIVAL BALANCE
           </span>
@@ -70,27 +70,28 @@ export default function Dashboard({ activeYear }) {
           </span>
         </div>
 
-        <h2 style={{ fontSize: 42, fontWeight: 900, margin: '14px 0 8px 0', letterSpacing: -1, position: 'relative', zIndex: 2 }}>
-          {fmt(summary.balance)}
+        <h2 style={{ fontSize: 38, fontWeight: 900, margin: '14px 0 10px 0', letterSpacing: -0.5, position: 'relative', zIndex: 2, display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <span style={{ fontSize: 28, opacity: 0.9 }}>₹</span>
+          <span>{Number(summary.balance).toLocaleString('en-IN')}</span>
         </h2>
 
         <div style={{
           display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12,
-          background: 'rgba(0, 0, 0, 0.15)', backdropFilter: 'blur(8px)',
-          borderRadius: 16, padding: '10px 14px', marginTop: 14, position: 'relative', zIndex: 2
+          background: 'rgba(0, 0, 0, 0.2)', backdropFilter: 'blur(8px)',
+          borderRadius: 16, padding: '12px 16px', marginTop: 14, position: 'relative', zIndex: 2
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <ArrowDownRight size={16} color="#4ADE80" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ArrowDownRight size={18} color="#4ADE80" />
             <div>
-              <span style={{ fontSize: 10, opacity: 0.8, display: 'block' }}>Total Revenue</span>
-              <span style={{ fontSize: 13, fontWeight: 800 }}>{fmt(summary.income)}</span>
+              <span style={{ fontSize: 10, opacity: 0.85, display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Total Revenue</span>
+              <span style={{ fontSize: 14, fontWeight: 900 }}>{fmt(summary.income)}</span>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <ArrowUpRight size={16} color="#F87171" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ArrowUpRight size={18} color="#F87171" />
             <div>
-              <span style={{ fontSize: 10, opacity: 0.8, display: 'block' }}>Total Expenses</span>
-              <span style={{ fontSize: 13, fontWeight: 800 }}>{fmt(summary.kharch)}</span>
+              <span style={{ fontSize: 10, opacity: 0.85, display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Total Expenses</span>
+              <span style={{ fontSize: 14, fontWeight: 900 }}>{fmt(summary.kharch)}</span>
             </div>
           </div>
         </div>
@@ -132,40 +133,40 @@ export default function Dashboard({ activeYear }) {
 
       {/* Summary 3 Glass Metric Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
-        <div className="luxe-card" style={{ padding: 16, textAlign: 'center' }}>
+        <div className="luxe-card" style={{ padding: 14, textAlign: 'center' }}>
           <div style={{
-            width: 40, height: 40, borderRadius: 14, background: '#EFF6FF',
+            width: 38, height: 38, borderRadius: 14, background: '#EFF6FF',
             color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px auto',
             boxShadow: '0 4px 12px rgba(37, 99, 235, 0.15)'
           }}>
-            <Users size={20} />
+            <Users size={18} />
           </div>
           <p style={{ fontSize: 11, fontWeight: 800, color: '#64748B' }}>Donations</p>
-          <p style={{ fontSize: 16, fontWeight: 900, color: '#1D4ED8', marginTop: 2 }}>{fmt(summary.vargani)}</p>
+          <p style={{ fontSize: 15, fontWeight: 900, color: '#1D4ED8', marginTop: 3 }}>{fmt(summary.vargani)}</p>
         </div>
 
-        <div className="luxe-card" style={{ padding: 16, textAlign: 'center' }}>
+        <div className="luxe-card" style={{ padding: 14, textAlign: 'center' }}>
           <div style={{
-            width: 40, height: 40, borderRadius: 14, background: '#ECFDF5',
+            width: 38, height: 38, borderRadius: 14, background: '#ECFDF5',
             color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px auto',
             boxShadow: '0 4px 12px rgba(16, 185, 129, 0.15)'
           }}>
-            <TrendingUp size={20} />
+            <TrendingUp size={18} />
           </div>
           <p style={{ fontSize: 11, fontWeight: 800, color: '#64748B' }}>Other Income</p>
-          <p style={{ fontSize: 16, fontWeight: 900, color: '#059669', marginTop: 2 }}>{fmt(summary.jama)}</p>
+          <p style={{ fontSize: 15, fontWeight: 900, color: '#059669', marginTop: 3 }}>{fmt(summary.jama)}</p>
         </div>
 
-        <div className="luxe-card" style={{ padding: 16, textAlign: 'center' }}>
+        <div className="luxe-card" style={{ padding: 14, textAlign: 'center' }}>
           <div style={{
-            width: 40, height: 40, borderRadius: 14, background: '#FEF2F2',
+            width: 38, height: 38, borderRadius: 14, background: '#FEF2F2',
             color: '#DC2626', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px auto',
             boxShadow: '0 4px 12px rgba(220, 38, 38, 0.15)'
           }}>
-            <TrendingDown size={20} />
+            <TrendingDown size={18} />
           </div>
           <p style={{ fontSize: 11, fontWeight: 800, color: '#64748B' }}>Expenses</p>
-          <p style={{ fontSize: 16, fontWeight: 900, color: '#DC2626', marginTop: 2 }}>{fmt(summary.kharch)}</p>
+          <p style={{ fontSize: 15, fontWeight: 900, color: '#DC2626', marginTop: 3 }}>{fmt(summary.kharch)}</p>
         </div>
       </div>
 
@@ -176,7 +177,7 @@ export default function Dashboard({ activeYear }) {
             Member Contribution Rate
           </h3>
           <span style={{
-            fontSize: 13, fontWeight: 900, color: '#FF5722',
+            fontSize: 12, fontWeight: 900, color: '#FF5722',
             background: '#FFF7ED', padding: '4px 12px', borderRadius: 20, border: '1px solid #FFEDD5'
           }}>
             {pctPaid}% Paid
@@ -232,7 +233,7 @@ export default function Dashboard({ activeYear }) {
           </div>
           <hr style={{ border: 'none', borderTop: '1px solid #E2E8F0' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 800 }}>
-            <span style={{ color: '#0F172A' }}>Total Income</span>
+            <span style={{ color: '#0F172A' }}>Total Revenue</span>
             <span style={{ color: '#10B981' }}>{fmt(summary.income)}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 800 }}>

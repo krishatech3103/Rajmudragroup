@@ -129,6 +129,28 @@ class DBService {
     if (kharchChanged || !localStorage.getItem(KEYS.KHARCH)) {
       localStorage.setItem(KEYS.KHARCH, JSON.stringify(kharchList));
     }
+
+    // Auto-clean Aarti entries older than 30 days
+    this.cleanOldAarti();
+  }
+
+  // Auto-delete Aarti schedule entries older than 30 days to avoid unnecessary DB load
+  cleanOldAarti() {
+    const list = JSON.parse(localStorage.getItem(KEYS.AARTI) || '[]');
+    if (list.length === 0) return;
+
+    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    const filtered = list.filter(item => {
+      if (!item.date) return true;
+      const itemDateMs = new Date(item.date).getTime();
+      return (now - itemDateMs) <= thirtyDaysMs;
+    });
+
+    if (filtered.length !== list.length) {
+      localStorage.setItem(KEYS.AARTI, JSON.stringify(filtered));
+    }
   }
 
   // ── SETTINGS ─────────────────────────────────────────────────────────────
@@ -309,6 +331,7 @@ class DBService {
 
   // ── AARTI SCHEDULE ────────────────────────────────────────────────────────
   getAarti(year = null) {
+    this.cleanOldAarti();
     const list = JSON.parse(localStorage.getItem(KEYS.AARTI) || '[]');
     if (year) return list.filter(a => a.year === year);
     return list;
