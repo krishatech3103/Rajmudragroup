@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF5722" />
+      <stop offset="100%" stop-color="#D84315" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD700" />
+      <stop offset="100%" stop-color="#FFB300" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="110" fill="url(#bgGrad)" />
+  <circle cx="256" cy="256" r="210" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="12" />
+  
+  <!-- Saffron Flag Emblem -->
+  <path d="M160 110 L380 170 L240 230 L380 290 L160 350 Z" fill="url(#goldGrad)" filter="drop-shadow(0px 8px 16px rgba(0,0,0,0.3))" />
+  <rect x="140" y="90" width="20" height="330" rx="10" fill="#FFFFFF" />
+  
+  <!-- Crown Icon Accent -->
+  <path d="M210 390 L230 420 L256 395 L282 420 L302 390 Z" fill="url(#goldGrad)" />
+</svg>
