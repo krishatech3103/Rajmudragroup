@@ -1,22 +1,19 @@
 {
   "name": "राजमुद्रा गणेश उत्सव मंडळ",
   "short_name": "राजमुद्रा मंडळ",
-  "description": "Rajmudra Ganesh Mandal Accounts & Vargani Manager",
+  "description": "Rajmudra Ganesh Mandal Accounts, Vargani & Bank FD Management System",
   "start_url": "/",
+  "id": "/",
   "display": "standalone",
-  "background_color": "#FFF8F0",
-  "theme_color": "#FF6D00",
+  "background_color": "#0F172A",
+  "theme_color": "#FF5722",
   "orientation": "portrait",
+  "scope": "/",
+  "categories": ["finance", "utilities"],
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%23FF6D00%22/><text x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2260%22>🚩</text></svg>",
-      "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%23FF6D00%22/><text x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2260%22>🚩</text></svg>",
-      "sizes": "512x512",
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }

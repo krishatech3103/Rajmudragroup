@@ -3,7 +3,15 @@ import { Plus, Search, Edit, Trash2, X, ArrowDownCircle, Languages, Lock } from 
 import { db } from '../services/db';
 import { transliterateText } from '../utils/marathiTransliterate';
 
-const INCOME_CATEGORIES = ['All', 'Donations', 'Sponsorship / Awards', 'Advertisements', 'Interest Income', 'Other Income'];
+const INCOME_CATEGORIES = [
+  'All',
+  'Donations',
+  'Sponsorship / Awards',
+  'Stall / Banner Rental',
+  'Cultural Program Fund',
+  'Interest Income',
+  'Other Income'
+];
 
 export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
   const [search, setSearch] = useState('');
@@ -11,9 +19,9 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
 
-  // Form
+  // Form State
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('Donations');
+  const [category, setCategory] = useState('Sponsorship / Awards');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');
@@ -44,7 +52,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
     } else {
       setEditItem(null);
       setTitle('');
-      setCategory('Donations');
+      setCategory('Sponsorship / Awards');
       setAmount('');
       setDate(new Date().toISOString().split('T')[0]);
       setNote('');
@@ -55,7 +63,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
   const handleSave = (e) => {
     e.preventDefault();
     if (!title.trim() || !amount) {
-      alert('Title and amount are required!');
+      alert('Income title and amount are required!');
       return;
     }
     const numAmt = Number(amount);
@@ -88,7 +96,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
 
   return (
     <div style={{ padding: 20, fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif' }} className="animate-fade-in">
-      {/* Banner */}
+      {/* Banner Header */}
       <div style={{
         background: 'linear-gradient(135deg, #059669 0%, #10B981 50%, #34D399 100%)',
         color: '#ffffff',
@@ -113,7 +121,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
 
         <div style={{ textAlign: 'right', minWidth: 'fit-content' }}>
           <p style={{ fontSize: 24, fontWeight: 900, margin: 0, letterSpacing: -0.5 }}>
-            ₹ {totalJama.toLocaleString('en-IN')}
+            Rs. {totalJama.toLocaleString('en-IN')}
           </p>
           <span style={{ fontSize: 11, background: 'rgba(255, 255, 255, 0.25)', padding: '3px 10px', borderRadius: 12, fontWeight: 800, marginTop: 4, display: 'inline-block' }}>
             {jamaList.length} Entries
@@ -121,13 +129,17 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
         </div>
       </div>
 
-      {/* Category Filter Horizontal Pills Bar */}
+      {/* Category Filter Horizontal Pills */}
       <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 16 }}>
         {INCOME_CATEGORIES.map(cat => (
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
             className={`category-pill ${selectedCategory === cat ? 'active' : ''}`}
+            style={{
+              background: selectedCategory === cat ? '#059669' : undefined,
+              borderColor: selectedCategory === cat ? '#059669' : undefined
+            }}
           >
             {cat}
           </button>
@@ -194,7 +206,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                 <span style={{ fontSize: 17, fontWeight: 900, color: '#059669', marginRight: 4 }}>
-                  ₹ {Number(j.amount).toLocaleString('en-IN')}
+                  Rs. {Number(j.amount).toLocaleString('en-IN')}
                 </span>
 
                 {isAdmin && !j.is_locked && (
@@ -219,14 +231,14 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
         </div>
       )}
 
-      {/* Add/Edit Modal */}
+      {/* Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-sheet" onClick={e => e.stopPropagation()}>
             <div className="sheet-pill" />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <h3 style={{ fontSize: 18, fontWeight: 900, color: '#059669' }}>
-                {editItem ? 'Edit Income Record' : 'Record New Income'}
+                {editItem ? 'Edit Income Record' : 'Record New Revenue Entry'}
               </h3>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
                 <X size={22} color="#64748B" />
@@ -236,7 +248,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
             <form onSubmit={handleSave}>
               <div className="input-group">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <label className="input-label" style={{ margin: 0 }}>Title / Source *</label>
+                  <label className="input-label" style={{ margin: 0 }}>Income Title *</label>
                   <button
                     type="button"
                     onClick={() => { if (title) setTitle(transliterateText(title)); }}
@@ -255,7 +267,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
                   className="input-field"
                   value={title}
                   onChange={e => setTitle(e.target.value)}
-                  placeholder="e.g. Aarti Collection or आरती संग्रह"
+                  placeholder="e.g. Advertisement Banner or बॅनर जाहिरात"
                   required
                 />
               </div>
@@ -272,7 +284,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
               </div>
 
               <div className="input-group">
-                <label className="input-label">Amount (₹) *</label>
+                <label className="input-label">Amount (Rs.) *</label>
                 <input
                   type="number"
                   className="input-field"
@@ -294,18 +306,18 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
               </div>
 
               <div className="input-group">
-                <label className="input-label">Note / Reference</label>
+                <label className="input-label">Note / Receipt Ref</label>
                 <input
                   type="text"
                   className="input-field"
                   value={note}
                   onChange={e => setNote(e.target.value)}
-                  placeholder="Additional details"
+                  placeholder="e.g. Receipt No. 88"
                 />
               </div>
 
               <button type="submit" className="btn btn-success" style={{ marginTop: 14, width: '100%' }}>
-                {editItem ? 'Update Income' : 'Save Income'}
+                {editItem ? 'Update Income' : 'Save Revenue Entry'}
               </button>
             </form>
           </div>

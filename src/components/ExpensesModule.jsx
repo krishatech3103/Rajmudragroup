@@ -126,7 +126,7 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate }) {
 
         <div style={{ textAlign: 'right', minWidth: 'fit-content' }}>
           <p style={{ fontSize: 24, fontWeight: 900, margin: 0, letterSpacing: -0.5 }}>
-            ₹ {totalKharch.toLocaleString('en-IN')}
+            Rs. {totalKharch.toLocaleString('en-IN')}
           </p>
           <span style={{ fontSize: 11, background: 'rgba(255, 255, 255, 0.25)', padding: '3px 10px', borderRadius: 12, fontWeight: 800, marginTop: 4, display: 'inline-block' }}>
             {kharchList.length} Entries
@@ -211,7 +211,7 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate }) {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                 <span style={{ fontSize: 17, fontWeight: 900, color: '#DC2626', marginRight: 4 }}>
-                  ₹ {Number(k.amount).toLocaleString('en-IN')}
+                  Rs. {Number(k.amount).toLocaleString('en-IN')}
                 </span>
 
                 {isAdmin && !k.is_locked && (
@@ -289,7 +289,7 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate }) {
               </div>
 
               <div className="input-group">
-                <label className="input-label">Amount (₹) *</label>
+                <label className="input-label">Amount (Rs.) *</label>
                 <input
                   type="number"
                   className="input-field"

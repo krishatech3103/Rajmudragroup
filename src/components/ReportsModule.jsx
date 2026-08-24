@@ -16,10 +16,10 @@ export default function ReportsModule({ activeYear }) {
   const paidMembers = members.filter(m => paidMemberIds.includes(m.id));
   const pendingMembers = members.filter(m => !paidMemberIds.includes(m.id));
 
-  const fmt = (v) => `₹${Number(v).toLocaleString('en-IN')}`;
+  const fmt = (v) => `Rs. ${Number(v).toLocaleString('en-IN')}`;
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in" style={{ padding: 20 }}>
       {/* Top Banner with Clean PDF Export Button Alignment */}
       <div style={{
         background: 'linear-gradient(135deg, #1E293B 0%, #0F172A 100%)',

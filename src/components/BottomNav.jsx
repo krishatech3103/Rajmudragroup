@@ -1,31 +1,32 @@
 import React from 'react';
-import { LayoutDashboard, HeartHandshake, ArrowDownCircle, ArrowUpCircle, BarChart3, Flame } from 'lucide-react';
+import { LayoutDashboard, HeartHandshake, ArrowDownCircle, ArrowUpCircle, Flame, Landmark, BarChart3 } from 'lucide-react';
 
 export default function BottomNav({ activeTab, onChangeTab }) {
-  const tabs = [
+  const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'vargani', label: 'Donations', icon: HeartHandshake },
-    { id: 'aarti', label: 'Aarti 🚩', icon: Flame },
     { id: 'jama', label: 'Income', icon: ArrowDownCircle },
     { id: 'kharch', label: 'Expenses', icon: ArrowUpCircle },
+    { id: 'aarti', label: 'Aarti 🚩', icon: Flame },
+    { id: 'bank', label: 'Bank FD 🏦', icon: Landmark },
     { id: 'reports', label: 'Reports', icon: BarChart3 }
   ];
 
   return (
     <nav className="bottom-nav">
-      {tabs.map(tab => {
-        const Icon = tab.icon;
-        const isActive = activeTab === tab.id;
+      {navItems.map(item => {
+        const Icon = item.icon;
+        const isActive = activeTab === item.id;
         return (
           <button
-            key={tab.id}
-            onClick={() => onChangeTab(tab.id)}
+            key={item.id}
+            onClick={() => onChangeTab(item.id)}
             className={`nav-item ${isActive ? 'active' : ''}`}
           >
             <div className="nav-icon-wrap">
-              <Icon size={20} color={isActive ? '#E65100' : '#64748B'} />
+              <Icon size={20} />
             </div>
-            <span>{tab.label}</span>
+            <span>{item.label}</span>
           </button>
         );
       })}

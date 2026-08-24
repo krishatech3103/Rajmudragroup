@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, MessageSquare, Edit, Trash2, X, HeartHandshake, Sparkles, Languages } from 'lucide-react';
+import { Plus, Search, MessageSquare, Edit, Trash2, X, HeartHandshake, Languages } from 'lucide-react';
 import { db } from '../services/db';
 import { generateWhatsAppReceipt } from '../utils/whatsapp';
 import { transliterateText } from '../utils/marathiTransliterate';
@@ -128,7 +128,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate }) {
 
         <div style={{ textAlign: 'right', minWidth: 'fit-content' }}>
           <p style={{ fontSize: 24, fontWeight: 900, margin: 0, letterSpacing: -0.5 }}>
-            ₹ {totalVargani.toLocaleString('en-IN')}
+            Rs. {totalVargani.toLocaleString('en-IN')}
           </p>
           <span style={{ fontSize: 11, background: 'rgba(255, 255, 255, 0.25)', padding: '3px 10px', borderRadius: 12, fontWeight: 800, marginTop: 4, display: 'inline-block' }}>
             {varganiList.length} Receipts
@@ -196,7 +196,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate }) {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                 <span style={{ fontSize: 17, fontWeight: 900, color: '#1D4ED8', marginRight: 4 }}>
-                  ₹ {Number(v.amount).toLocaleString('en-IN')}
+                  Rs. {Number(v.amount).toLocaleString('en-IN')}
                 </span>
 
                 <button
@@ -296,7 +296,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate }) {
               </div>
 
               <div className="input-group">
-                <label className="input-label">Amount (₹) *</label>
+                <label className="input-label">Amount (Rs.) *</label>
                 <input
                   type="number"
                   className="input-field"

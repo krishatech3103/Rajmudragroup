@@ -1,16 +1,22 @@
 import React from 'react';
-import { Settings, ShieldCheck, Eye, RefreshCw, Crown, Calendar } from 'lucide-react';
+import { Settings, ShieldCheck, Eye, RefreshCw, Crown, Calendar, LayoutDashboard, HeartHandshake, ArrowDownCircle, ArrowUpCircle, BarChart3, Flame, Landmark } from 'lucide-react';
 import { db } from '../services/db';
 
 const YEARS = ['2026-27', '2025-26', '2024-25', '2027-28', '2028-29'];
 
-export default function Navbar({ isAdmin, activeYear, onOpenSettings, onRefresh, onYearChange }) {
+const TABS = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'vargani', label: 'Donations', icon: HeartHandshake },
+  { id: 'jama', label: 'Income', icon: ArrowDownCircle },
+  { id: 'kharch', label: 'Expenses', icon: ArrowUpCircle },
+  { id: 'aarti', label: 'Aarti 🚩', icon: Flame },
+  { id: 'bank', label: 'Bank FD 🏦', icon: Landmark },
+  { id: 'reports', label: 'Reports', icon: BarChart3 }
+];
+
+export default function Navbar({ isAdmin, activeYear, activeTab, onChangeTab, onOpenSettings, onRefresh, onYearChange }) {
   const handleSelectYear = (e) => {
     const newYear = e.target.value;
-    if (!isAdmin && (newYear === '2024-25' || newYear === '2025-26')) {
-      alert('Access Restricted: Previous financial audit records (2024 & 2025) are visible to Mandal Admin only.');
-      return;
-    }
     db.setSetting('active_year', newYear);
     if (onYearChange) onYearChange(newYear);
     onRefresh();
@@ -20,15 +26,18 @@ export default function Navbar({ isAdmin, activeYear, onOpenSettings, onRefresh,
     <header style={{
       background: 'linear-gradient(135deg, #1E293B 0%, #0F172A 100%)',
       color: '#ffffff',
-      padding: '14px 20px',
+      padding: '12px 24px',
       position: 'sticky',
       top: 0,
-      zIndex: 80,
-      boxShadow: '0 8px 30px rgba(15, 23, 42, 0.25)',
+      left: 0,
+      right: 0,
+      zIndex: 9990,
+      boxShadow: '0 8px 30px rgba(15, 23, 42, 0.35)',
       borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
+        {/* Brand Logo & Year Dropdown */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
           <div style={{
             width: 40, height: 40, borderRadius: 14,
             background: 'linear-gradient(135deg, #FF5722 0%, #FF9100 100%)',
@@ -63,7 +72,7 @@ export default function Navbar({ isAdmin, activeYear, onOpenSettings, onRefresh,
               >
                 {YEARS.map(y => (
                   <option key={y} value={y} style={{ background: '#0F172A', color: '#ffffff' }}>
-                    Year {y} { (!isAdmin && (y === '2024-25' || y === '2025-26')) ? '🔒' : '' }
+                    Year {y} {(y === '2024-25' || y === '2025-26') ? '🔒' : ''}
                   </option>
                 ))}
               </select>
@@ -71,7 +80,40 @@ export default function Navbar({ isAdmin, activeYear, onOpenSettings, onRefresh,
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* Desktop Top Navigation Tabs */}
+        <div className="desktop-nav-tabs" style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255, 255, 255, 0.06)', padding: 4, borderRadius: 18, border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+          {TABS.map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => onChangeTab(tab.id)}
+                style={{
+                  background: isActive ? 'linear-gradient(135deg, #FF5722 0%, #F4511E 100%)' : 'transparent',
+                  color: isActive ? '#ffffff' : '#CBD5E1',
+                  border: 'none',
+                  borderRadius: 14,
+                  padding: '8px 14px',
+                  fontSize: 13,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 7,
+                  boxShadow: isActive ? '0 4px 14px rgba(255, 87, 34, 0.4)' : 'none',
+                  transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                }}
+              >
+                <Icon size={16} color={isActive ? '#ffffff' : '#94A3B8'} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Right Actions: Admin Badge, Refresh, Settings */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <div style={{
             display: 'flex', alignItems: 'center', gap: 5,
             background: isAdmin ? 'rgba(255, 87, 34, 0.2)' : 'rgba(255, 255, 255, 0.1)',

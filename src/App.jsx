@@ -8,8 +8,10 @@ import DonationsModule from './components/DonationsModule';
 import AartiModule from './components/AartiModule';
 import IncomeModule from './components/IncomeModule';
 import ExpensesModule from './components/ExpensesModule';
+import BankModule from './components/BankModule';
 import ReportsModule from './components/ReportsModule';
 import SettingsModal from './components/SettingsModal';
+import PWAInstallBanner from './components/PWAInstallBanner';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -43,18 +45,23 @@ export default function App() {
 
   return (
     <div className="app-container">
+      <PWAInstallBanner />
+
       <Navbar
         isAdmin={isAdmin}
         activeYear={activeYear}
+        activeTab={activeTab}
+        onChangeTab={setActiveTab}
         onOpenSettings={() => setShowSettings(true)}
         onRefresh={handleRefresh}
         onYearChange={(y) => setActiveYear(y)}
       />
 
       <main key={refreshKey} className="content-wrapper">
-        {activeTab === 'dashboard' && <Dashboard activeYear={activeYear} />}
+        {activeTab === 'dashboard' && <Dashboard isAdmin={isAdmin} activeYear={activeYear} onUpdate={handleRefresh} onNavigateTab={setActiveTab} />}
         {activeTab === 'vargani' && <DonationsModule isAdmin={isAdmin} activeYear={activeYear} onUpdate={handleRefresh} />}
         {activeTab === 'aarti' && <AartiModule isAdmin={isAdmin} activeYear={activeYear} onUpdate={handleRefresh} />}
+        {activeTab === 'bank' && <BankModule isAdmin={isAdmin} activeYear={activeYear} onUpdate={handleRefresh} />}
         {activeTab === 'jama' && <IncomeModule isAdmin={isAdmin} activeYear={activeYear} onUpdate={handleRefresh} />}
         {activeTab === 'kharch' && <ExpensesModule isAdmin={isAdmin} activeYear={activeYear} onUpdate={handleRefresh} />}
         {activeTab === 'reports' && <ReportsModule activeYear={activeYear} />}

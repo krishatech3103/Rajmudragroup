@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Calendar, Key, Download, Upload, Cloud, ShieldCheck } from 'lucide-react';
+import { X, Calendar, Key, Download, Upload, Cloud, Eye, EyeOff } from 'lucide-react';
 import { db } from '../services/db';
 import { pushToCloud, pullFromCloud } from '../services/supabase';
 
@@ -7,10 +7,14 @@ export default function SettingsModal({ onClose, onUpdate }) {
   const settings = db.getSettings();
 
   const [activeYear, setActiveYear] = useState(settings.active_year);
-  const [adminPin, setAdminPin] = useState(settings.admin_pin);
-  const [viewerPin, setViewerPin] = useState(settings.viewer_pin);
+  const [adminPin, setAdminPin] = useState('');
+  const [viewerPin, setViewerPin] = useState('');
+  const [showAdminPin, setShowAdminPin] = useState(false);
+  const [showViewerPin, setShowViewerPin] = useState(false);
+
   const [supabaseUrl, setSupabaseUrl] = useState(settings.supabase_url);
   const [supabaseKey, setSupabaseKey] = useState(settings.supabase_key);
+  const [showSupabaseKey, setShowSupabaseKey] = useState(false);
   const [syncStatus, setSyncStatus] = useState('');
 
   const years = ['2024-25', '2025-26', '2026-27', '2027-28', '2028-29'];
@@ -25,13 +29,24 @@ export default function SettingsModal({ onClose, onUpdate }) {
 
   const handleSavePins = (e) => {
     e.preventDefault();
-    if (!adminPin.trim() || !viewerPin.trim()) {
-      alert('PINs / Passwords cannot be empty!');
-      return;
+    let updated = false;
+
+    if (adminPin.trim()) {
+      db.setSetting('admin_pin', adminPin.trim());
+      updated = true;
     }
-    db.setSetting('admin_pin', adminPin.trim());
-    db.setSetting('viewer_pin', viewerPin.trim());
-    alert('Security PINs updated successfully!');
+    if (viewerPin.trim()) {
+      db.setSetting('viewer_pin', viewerPin.trim());
+      updated = true;
+    }
+
+    if (updated) {
+      alert('Security PIN updated successfully!');
+      setAdminPin('');
+      setViewerPin('');
+    } else {
+      alert('No changes made to PINs. Current PINs remain active.');
+    }
   };
 
   const handleExportJSON = () => {
@@ -119,28 +134,56 @@ export default function SettingsModal({ onClose, onUpdate }) {
 
         {/* 2. Security PIN */}
         <div className="luxe-card" style={{ marginBottom: 14 }}>
-          <h4 style={{ fontSize: 14, fontWeight: 800, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, color: '#FF5722' }}>
+          <h4 style={{ fontSize: 14, fontWeight: 800, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, color: '#FF5722' }}>
             <Key size={18} /> 2. Security PIN Control
           </h4>
+          <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, marginBottom: 14 }}>
+            Leave fields blank if you do not want to update PINs.
+          </p>
+
           <form onSubmit={handleSavePins}>
             <div className="input-group">
-              <label className="input-label">Admin Key (Full Access)</label>
-              <input
-                type="text"
-                className="input-field"
-                value={adminPin}
-                onChange={e => setAdminPin(e.target.value)}
-              />
+              <label className="input-label">Admin Security Key (Full Access)</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showAdminPin ? 'text' : 'password'}
+                  className="input-field"
+                  style={{ paddingRight: 46 }}
+                  value={adminPin}
+                  onChange={e => setAdminPin(e.target.value)}
+                  placeholder="Leave blank to keep current PIN, or enter new PIN"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowAdminPin(!showAdminPin)}
+                  style={{ position: 'absolute', right: 14, top: 14, background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}
+                >
+                  {showAdminPin ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
+
             <div className="input-group">
-              <label className="input-label">Viewer Key (Read-Only)</label>
-              <input
-                type="text"
-                className="input-field"
-                value={viewerPin}
-                onChange={e => setViewerPin(e.target.value)}
-              />
+              <label className="input-label">Viewer Key (Read-Only Access)</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showViewerPin ? 'text' : 'password'}
+                  className="input-field"
+                  style={{ paddingRight: 46 }}
+                  value={viewerPin}
+                  onChange={e => setViewerPin(e.target.value)}
+                  placeholder="Leave blank to keep current PIN, or enter new PIN"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowViewerPin(!showViewerPin)}
+                  style={{ position: 'absolute', right: 14, top: 14, background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}
+                >
+                  {showViewerPin ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
+
             <button type="submit" className="btn btn-secondary" style={{ padding: '10px 14px', fontSize: 13, borderRadius: 12 }}>
               Update Security PINs
             </button>
@@ -179,16 +222,28 @@ export default function SettingsModal({ onClose, onUpdate }) {
               placeholder="https://xyz.supabase.co"
             />
           </div>
+
           <div className="input-group">
             <label className="input-label">Supabase Anon Key</label>
-            <input
-              type="password"
-              className="input-field"
-              value={supabaseKey}
-              onChange={e => setSupabaseKey(e.target.value)}
-              placeholder="eyJhbGci..."
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showSupabaseKey ? 'text' : 'password'}
+                className="input-field"
+                style={{ paddingRight: 46 }}
+                value={supabaseKey}
+                onChange={e => setSupabaseKey(e.target.value)}
+                placeholder="eyJhbGci..."
+              />
+              <button
+                type="button"
+                onClick={() => setShowSupabaseKey(!showSupabaseKey)}
+                style={{ position: 'absolute', right: 14, top: 14, background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}
+              >
+                {showSupabaseKey ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
+
           <button className="btn btn-primary" onClick={handleSaveSupabase} style={{ padding: 10, fontSize: 13, borderRadius: 14, marginBottom: 10 }}>
             Save Credentials
           </button>

@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { db } from '../services/db';
 import { Crown, Lock, User, Eye, EyeOff, ArrowRight, Calendar } from 'lucide-react';
 
-const AVAILABLE_YEARS = ['2026-27', '2025-26', '2024-25', '2027-28', '2028-29'];
-
 export default function PinModal({ onSuccess }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -22,7 +20,6 @@ export default function PinModal({ onSuccess }) {
     }
 
     const settings = db.getSettings();
-    const isPreviousYear = (selectedYear === '2024-25' || selectedYear === '2025-26');
 
     // Check Admin
     if (cleanUser === 'admin') {
@@ -34,13 +31,9 @@ export default function PinModal({ onSuccess }) {
         setPassword('');
       }
     } 
-    // Check Viewer / User
+    // Check Viewer / User (Viewers can see all years!)
     else if (cleanUser === 'user' || cleanUser === 'viewer') {
       if (cleanPass === settings.viewer_pin || cleanPass === '0000') {
-        if (isPreviousYear) {
-          setError('Access Restricted: Previous financial audit records (2024 & 2025) are visible to Mandal Admin only!');
-          return;
-        }
         db.setSetting('active_year', selectedYear);
         onSuccess(false); // Viewer Mode
       } else {
@@ -127,9 +120,9 @@ export default function PinModal({ onSuccess }) {
                     cursor: 'pointer'
                   }}
                 >
-                  <option value="2026-27" style={{ background: '#0F172A' }}>Year 2026–27 (Current Default)</option>
-                  <option value="2025-26" style={{ background: '#0F172A' }}>Year 2025–26 (Audit 🔒)</option>
-                  <option value="2024-25" style={{ background: '#0F172A' }}>Year 2024–25 (Audit 🔒)</option>
+                  <option value="2026-27" style={{ background: '#0F172A' }}>Year 2026–27 (Current Active)</option>
+                  <option value="2025-26" style={{ background: '#0F172A' }}>Year 2025–26 (Previous Audit 🔒)</option>
+                  <option value="2024-25" style={{ background: '#0F172A' }}>Year 2024–25 (Previous Audit 🔒)</option>
                   <option value="2027-28" style={{ background: '#0F172A' }}>Year 2027–28</option>
                   <option value="2028-29" style={{ background: '#0F172A' }}>Year 2028–29</option>
                 </select>

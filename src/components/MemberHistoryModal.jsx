@@ -30,7 +30,7 @@ export default function MemberHistoryModal({ member, onClose }) {
               <div key={item.year} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12 }}>
                 <span style={{ fontWeight: 700, fontSize: 14 }}>Year {item.year}</span>
                 <span style={{ fontWeight: 800, color: '#1565C0', fontSize: 15 }}>
-                  ₹{Number(item.total).toLocaleString('en-IN')}
+                  Rs. {Number(item.total).toLocaleString('en-IN')}
                 </span>
               </div>
             ))}

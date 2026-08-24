@@ -1,12 +1,13 @@
-import React from 'react';
-import { Wallet, TrendingUp, TrendingDown, Users, Sparkles, ArrowUpRight, ArrowDownRight, Flame, Sun, Moon } from 'lucide-react';
+import React, { useState } from 'react';
+import { Wallet, TrendingUp, TrendingDown, Users, Sparkles, ArrowUpRight, ArrowDownRight, Flame, Sun, Moon, Landmark, ChevronRight } from 'lucide-react';
 import { db } from '../services/db';
 
-export default function Dashboard({ activeYear }) {
+export default function Dashboard({ isAdmin, activeYear, onUpdate, onNavigateTab }) {
   const summary = db.getSummary(activeYear);
   const members = db.getMembers();
   const vargani = db.getVargani(activeYear);
   const aartiList = db.getAarti(activeYear);
+  const fdSummary = db.getBankFDSummary();
 
   const paidMemberIds = [...new Set(vargani.map(v => v.member_id))];
   const paidCount = paidMemberIds.length;
@@ -15,7 +16,7 @@ export default function Dashboard({ activeYear }) {
   const pctPaid = memberCount > 0 ? Math.round((paidCount / memberCount) * 100) : 0;
 
   const isPositive = summary.balance >= 0;
-  const fmt = (v) => `₹ ${Number(v).toLocaleString('en-IN')}`;
+  const fmt = (v) => `Rs. ${Number(v).toLocaleString('en-IN')}`;
 
   const latestAarti = aartiList.length > 0 ? aartiList[0] : null;
 
@@ -50,7 +51,7 @@ export default function Dashboard({ activeYear }) {
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2, gap: 12, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 13, fontWeight: 800, opacity: 0.95, display: 'flex', alignItems: 'center', gap: 7, letterSpacing: 0.8 }}>
-            <Wallet size={18} /> NET FESTIVAL BALANCE
+            <Wallet size={18} /> NET FESTIVAL CASH BALANCE
           </span>
           <span style={{
             background: 'rgba(255, 255, 255, 0.2)',
@@ -70,9 +71,8 @@ export default function Dashboard({ activeYear }) {
           </span>
         </div>
 
-        <h2 style={{ fontSize: 38, fontWeight: 900, margin: '14px 0 10px 0', letterSpacing: -0.5, position: 'relative', zIndex: 2, display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span style={{ fontSize: 28, opacity: 0.9 }}>₹</span>
-          <span>{Number(summary.balance).toLocaleString('en-IN')}</span>
+        <h2 style={{ fontSize: 36, fontWeight: 900, margin: '14px 0 10px 0', letterSpacing: -0.5, position: 'relative', zIndex: 2, color: '#ffffff' }}>
+          Rs. {Number(summary.balance).toLocaleString('en-IN')}
         </h2>
 
         <div style={{
@@ -94,6 +94,56 @@ export default function Dashboard({ activeYear }) {
               <span style={{ fontSize: 14, fontWeight: 900 }}>{fmt(summary.kharch)}</span>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Mandal Bank FD & Treasury Balance Metallic Luxe Banner */}
+      <div
+        className="luxe-card"
+        onClick={() => { if (onNavigateTab) onNavigateTab('bank'); }}
+        style={{
+          background: 'linear-gradient(135deg, #065F46 0%, #047857 50%, #059669 100%)',
+          color: '#ffffff',
+          borderRadius: 24,
+          padding: 20,
+          marginBottom: 20,
+          cursor: 'pointer',
+          boxShadow: '0 12px 30px rgba(5, 150, 105, 0.25)',
+          position: 'relative',
+          overflow: 'hidden',
+          transition: 'transform 0.2s ease'
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 2, flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 42, height: 42, borderRadius: 14, background: 'rgba(255, 255, 255, 0.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              <Landmark size={22} color="#ffffff" />
+            </div>
+            <div>
+              <span style={{ fontSize: 11, fontWeight: 800, opacity: 0.9, textTransform: 'uppercase', letterSpacing: 0.8, display: 'block' }}>
+                MANDAL BANK FIXED DEPOSIT (FD)
+              </span>
+              <h3 style={{ fontSize: 22, fontWeight: 900, margin: '2px 0 0 0', color: '#ffffff' }}>
+                Rs. {fdSummary.current_fd_balance.toLocaleString('en-IN')}
+              </h3>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255, 255, 255, 0.18)', padding: '6px 14px', borderRadius: 14, fontSize: 12, fontWeight: 800 }}>
+            <span>Open Bank Tab</span>
+            <ChevronRight size={16} />
+          </div>
+        </div>
+
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          borderTop: '1px solid rgba(255, 255, 255, 0.2)', marginTop: 14, paddingTop: 10, fontSize: 12, opacity: 0.95
+        }}>
+          <span>Total Net Assets (Cash + Bank FD):</span>
+          <strong style={{ fontSize: 14, color: '#A7F3D0' }}>Rs. {(summary.balance + fdSummary.current_fd_balance).toLocaleString('en-IN')}</strong>
         </div>
       </div>
 
@@ -141,8 +191,8 @@ export default function Dashboard({ activeYear }) {
           }}>
             <Users size={18} />
           </div>
-          <p style={{ fontSize: 11, fontWeight: 800, color: '#64748B' }}>Donations</p>
-          <p style={{ fontSize: 15, fontWeight: 900, color: '#1D4ED8', marginTop: 3 }}>{fmt(summary.vargani)}</p>
+          <p style={{ fontSize: 11, fontWeight: 800, color: '#64748B', margin: 0 }}>Donations</p>
+          <p style={{ fontSize: 14, fontWeight: 900, color: '#1D4ED8', marginTop: 4 }}>{fmt(summary.vargani)}</p>
         </div>
 
         <div className="luxe-card" style={{ padding: 14, textAlign: 'center' }}>
@@ -153,8 +203,8 @@ export default function Dashboard({ activeYear }) {
           }}>
             <TrendingUp size={18} />
           </div>
-          <p style={{ fontSize: 11, fontWeight: 800, color: '#64748B' }}>Other Income</p>
-          <p style={{ fontSize: 15, fontWeight: 900, color: '#059669', marginTop: 3 }}>{fmt(summary.jama)}</p>
+          <p style={{ fontSize: 11, fontWeight: 800, color: '#64748B', margin: 0 }}>Other Income</p>
+          <p style={{ fontSize: 14, fontWeight: 900, color: '#059669', marginTop: 4 }}>{fmt(summary.jama)}</p>
         </div>
 
         <div className="luxe-card" style={{ padding: 14, textAlign: 'center' }}>
@@ -165,8 +215,8 @@ export default function Dashboard({ activeYear }) {
           }}>
             <TrendingDown size={18} />
           </div>
-          <p style={{ fontSize: 11, fontWeight: 800, color: '#64748B' }}>Expenses</p>
-          <p style={{ fontSize: 15, fontWeight: 900, color: '#DC2626', marginTop: 3 }}>{fmt(summary.kharch)}</p>
+          <p style={{ fontSize: 11, fontWeight: 800, color: '#64748B', margin: 0 }}>Expenses</p>
+          <p style={{ fontSize: 14, fontWeight: 900, color: '#DC2626', marginTop: 4 }}>{fmt(summary.kharch)}</p>
         </div>
       </div>
 
@@ -186,16 +236,16 @@ export default function Dashboard({ activeYear }) {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, textAlign: 'center', marginBottom: 16 }}>
           <div style={{ background: '#F8FAFC', padding: 12, borderRadius: 16, border: '1px solid #F1F5F9' }}>
-            <p style={{ fontSize: 20, fontWeight: 900, color: '#334155' }}>{memberCount}</p>
-            <p style={{ fontSize: 11, fontWeight: 700, color: '#64748B' }}>Members</p>
+            <p style={{ fontSize: 20, fontWeight: 900, color: '#334155', margin: 0 }}>{memberCount}</p>
+            <p style={{ fontSize: 11, fontWeight: 700, color: '#64748B', margin: '2px 0 0 0' }}>Members</p>
           </div>
           <div style={{ background: '#F0FDF4', padding: 12, borderRadius: 16, border: '1px solid #DCFCE7' }}>
-            <p style={{ fontSize: 20, fontWeight: 900, color: '#16A34A' }}>{paidCount}</p>
-            <p style={{ fontSize: 11, fontWeight: 700, color: '#15803D' }}>Paid ✅</p>
+            <p style={{ fontSize: 20, fontWeight: 900, color: '#16A34A', margin: 0 }}>{paidCount}</p>
+            <p style={{ fontSize: 11, fontWeight: 700, color: '#15803D', margin: '2px 0 0 0' }}>Paid ✅</p>
           </div>
           <div style={{ background: '#FEF2F2', padding: 12, borderRadius: 16, border: '1px solid #FEE2E2' }}>
-            <p style={{ fontSize: 20, fontWeight: 900, color: '#DC2626' }}>{pendingCount}</p>
-            <p style={{ fontSize: 11, fontWeight: 700, color: '#B91C1C' }}>Pending ⏳</p>
+            <p style={{ fontSize: 20, fontWeight: 900, color: '#DC2626', margin: 0 }}>{pendingCount}</p>
+            <p style={{ fontSize: 11, fontWeight: 700, color: '#B91C1C', margin: '2px 0 0 0' }}>Pending ⏳</p>
           </div>
         </div>
 
@@ -241,9 +291,17 @@ export default function Dashboard({ activeYear }) {
             <span style={{ color: '#EF4444' }}>{fmt(summary.kharch)}</span>
           </div>
           <hr style={{ border: 'none', borderTop: '2px solid #FF5722' }} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 900 }}>
-            <span style={{ color: '#0F172A' }}>Net Balance</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 900 }}>
+            <span style={{ color: '#0F172A' }}>Net Cash Balance</span>
             <span style={{ color: isPositive ? '#10B981' : '#EF4444' }}>{fmt(summary.balance)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 900 }}>
+            <span style={{ color: '#059669' }}>Mandal Bank FD Balance</span>
+            <span style={{ color: '#059669' }}>Rs. {fdSummary.current_fd_balance.toLocaleString('en-IN')}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 900, background: '#F0FDF4', padding: '10px 14px', borderRadius: 14, border: '1px solid #DCFCE7' }}>
+            <span style={{ color: '#065F46' }}>Total Net Assets</span>
+            <span style={{ color: '#047857' }}>Rs. {(summary.balance + fdSummary.current_fd_balance).toLocaleString('en-IN')}</span>
           </div>
         </div>
       </div>

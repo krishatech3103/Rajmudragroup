@@ -6,7 +6,8 @@ const KEYS = {
   VARGANI: 'rajmudra_vargani',
   JAMA: 'rajmudra_jama',
   KHARCH: 'rajmudra_kharch',
-  AARTI: 'rajmudra_aarti'
+  AARTI: 'rajmudra_aarti',
+  BANK_FD: 'rajmudra_bank_fd'
 };
 
 // Initial default settings
@@ -41,17 +42,6 @@ const initialJamaRecords = [
     note: 'Official Audit Record 2025 (Non-editable)',
     is_locked: true,
     created_at: new Date('2025-08-27').toISOString()
-  },
-  {
-    id: 'audit_2025_jama_2',
-    title: 'मंडळाची शिल्लक असणारी वर्गणीची ठेव पावती (Fixed Deposit Receipt)',
-    category: 'Sponsorship / Awards',
-    amount: 46216,
-    date: '2025-08-28',
-    year: '2025-26',
-    note: 'Mandal Fixed Deposit Receipt 2025 (Non-editable)',
-    is_locked: true,
-    created_at: new Date('2025-08-28').toISOString()
   }
 ];
 
@@ -104,20 +94,17 @@ class DBService {
     if (!localStorage.getItem(KEYS.VARGANI)) localStorage.setItem(KEYS.VARGANI, JSON.stringify([]));
     if (!localStorage.getItem(KEYS.AARTI)) localStorage.setItem(KEYS.AARTI, JSON.stringify([]));
 
-    // Seed Jama records with audit 2024 & 2025 if missing
+    // Ensure Jama list is updated (removing pre-seeded FD receipt jama)
     let jamaList = JSON.parse(localStorage.getItem(KEYS.JAMA) || '[]');
-    let jamaChanged = false;
+    jamaList = jamaList.filter(j => j.id !== 'audit_2025_jama_2');
     initialJamaRecords.forEach(rec => {
       if (!jamaList.some(j => j.id === rec.id)) {
         jamaList.push(rec);
-        jamaChanged = true;
       }
     });
-    if (jamaChanged || !localStorage.getItem(KEYS.JAMA)) {
-      localStorage.setItem(KEYS.JAMA, JSON.stringify(jamaList));
-    }
+    localStorage.setItem(KEYS.JAMA, JSON.stringify(jamaList));
 
-    // Seed Kharch records with audit 2024 & 2025 if missing
+    // Seed Kharch records
     let kharchList = JSON.parse(localStorage.getItem(KEYS.KHARCH) || '[]');
     let kharchChanged = false;
     initialKharchRecords.forEach(rec => {
@@ -129,6 +116,11 @@ class DBService {
     if (kharchChanged || !localStorage.getItem(KEYS.KHARCH)) {
       localStorage.setItem(KEYS.KHARCH, JSON.stringify(kharchList));
     }
+
+    // Clean pre-seeded FD records if present so user can enter manually
+    let fdList = JSON.parse(localStorage.getItem(KEYS.BANK_FD) || '[]');
+    fdList = fdList.filter(f => f.id !== 'audit_2025_bank_fd_1');
+    localStorage.setItem(KEYS.BANK_FD, JSON.stringify(fdList));
 
     // Auto-clean Aarti entries older than 30 days
     this.cleanOldAarti();
@@ -150,6 +142,24 @@ class DBService {
 
     if (filtered.length !== list.length) {
       localStorage.setItem(KEYS.AARTI, JSON.stringify(filtered));
+    }
+  }
+
+  // Helper to derive fiscal year string (e.g. 2024-25) from date string (YYYY-MM-DD)
+  deriveYearFromDate(dateStr) {
+    if (!dateStr) return '2026-27';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '2026-27';
+    const year = d.getFullYear();
+    const month = d.getMonth() + 1; // 1-indexed
+    // Fiscal year starts April 1st in India
+    if (month >= 4) {
+      const nextY = (year + 1).toString().slice(-2);
+      return `${year}-${nextY}`;
+    } else {
+      const prevY = year - 1;
+      const curY = year.toString().slice(-2);
+      return `${prevY}-${curY}`;
     }
   }
 
@@ -209,9 +219,11 @@ class DBService {
 
   addVargani(data) {
     const list = this.getVargani();
+    const derivedYear = data.year || this.deriveYearFromDate(data.date);
     const newItem = {
       id: Date.now(),
       ...data,
+      year: derivedYear,
       created_at: new Date().toISOString()
     };
     list.unshift(newItem);
@@ -252,9 +264,11 @@ class DBService {
 
   addJama(data) {
     const list = this.getJama();
+    const derivedYear = data.year || this.deriveYearFromDate(data.date);
     const newItem = {
       id: Date.now(),
       ...data,
+      year: derivedYear,
       created_at: new Date().toISOString()
     };
     list.unshift(newItem);
@@ -295,9 +309,11 @@ class DBService {
 
   addKharch(data) {
     const list = this.getKharch();
+    const derivedYear = data.year || this.deriveYearFromDate(data.date);
     const newItem = {
       id: Date.now(),
       ...data,
+      year: derivedYear,
       created_at: new Date().toISOString()
     };
     list.unshift(newItem);
@@ -329,6 +345,118 @@ class DBService {
     localStorage.setItem(KEYS.KHARCH, JSON.stringify(filtered));
   }
 
+  // ── BANK FD & TREASURY ───────────────────────────────────────────────────
+  getBankFD(year = null) {
+    const list = JSON.parse(localStorage.getItem(KEYS.BANK_FD) || '[]');
+    if (year) return list.filter(f => f.year === year);
+    return list;
+  }
+
+  addBankFD(data) {
+    const list = JSON.parse(localStorage.getItem(KEYS.BANK_FD) || '[]');
+    const derivedYear = data.year || this.deriveYearFromDate(data.date);
+
+    const newItem = {
+      id: Date.now(),
+      ...data,
+      year: derivedYear,
+      created_at: new Date().toISOString()
+    };
+    list.unshift(newItem);
+    localStorage.setItem(KEYS.BANK_FD, JSON.stringify(list));
+
+    // If type is 'fd_expense', automatically post entry into Kharch table as well!
+    if (data.type === 'fd_expense') {
+      this.addKharch({
+        title: `[FD Withdrawal Expense] ${data.title}`,
+        category: 'Miscellaneous Expenses',
+        year: derivedYear,
+        amount: Number(data.amount),
+        date: data.date,
+        note: `Auto-recorded from Bank FD withdrawal for expense: ${data.note || ''}`.trim()
+      });
+    }
+
+    return newItem;
+  }
+
+  updateBankFD(id, data) {
+    const list = JSON.parse(localStorage.getItem(KEYS.BANK_FD) || '[]');
+    const idx = list.findIndex(f => f.id === id);
+    if (idx !== -1) {
+      if (list[idx].is_locked) {
+        alert('Official Audit Record is non-editable!');
+        return;
+      }
+      const derivedYear = data.year || this.deriveYearFromDate(data.date);
+      list[idx] = { ...list[idx], ...data, year: derivedYear };
+      localStorage.setItem(KEYS.BANK_FD, JSON.stringify(list));
+    }
+  }
+
+  deleteBankFD(id) {
+    const list = JSON.parse(localStorage.getItem(KEYS.BANK_FD) || '[]');
+    const target = list.find(f => f.id === id);
+    if (target && target.is_locked) {
+      alert('Official Audit Record cannot be deleted!');
+      return;
+    }
+    const filtered = list.filter(f => f.id !== id);
+    localStorage.setItem(KEYS.BANK_FD, JSON.stringify(filtered));
+  }
+
+  getBankFDSummary() {
+    const list = this.getBankFD();
+    let totalFD = 0;
+    let totalInterest = 0;
+    let totalCharges = 0;
+    let totalWithdrawals = 0;
+    let totalFDExpenses = 0;
+    let expectedReturns = 0;
+    let expiredCount = 0;
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    list.forEach(item => {
+      const amt = Number(item.amount) || 0;
+      if (item.type === 'deposit' || item.type === 'renew') {
+        totalFD += amt;
+        if (item.expected_returns) expectedReturns += Number(item.expected_returns);
+      }
+      else if (item.type === 'interest') {
+        totalFD += amt;
+        totalInterest += amt;
+      }
+      else if (item.type === 'withdrawal') {
+        totalFD -= amt;
+        totalWithdrawals += amt;
+      }
+      else if (item.type === 'fd_expense') {
+        totalFD -= amt;
+        totalFDExpenses += amt;
+      }
+      else if (item.type === 'charge') {
+        totalFD -= amt;
+        totalCharges += amt;
+      }
+
+      if (item.expiry_date && item.expiry_date <= todayStr && (item.type === 'deposit' || item.type === 'renew')) {
+        expiredCount++;
+      }
+    });
+
+    return {
+      current_fd_balance: Math.max(0, totalFD),
+      total_interest: totalInterest,
+      total_charges: totalCharges,
+      total_withdrawals: totalWithdrawals,
+      total_fd_expenses: totalFDExpenses,
+      expected_returns: expectedReturns,
+      expired_count: expiredCount,
+      entries_count: list.length
+    };
+  }
+
   // ── AARTI SCHEDULE ────────────────────────────────────────────────────────
   getAarti(year = null) {
     this.cleanOldAarti();
@@ -339,9 +467,11 @@ class DBService {
 
   addAarti(data) {
     const list = this.getAarti();
+    const derivedYear = data.year || this.deriveYearFromDate(data.date);
     const newItem = {
       id: Date.now(),
       ...data,
+      year: derivedYear,
       created_at: new Date().toISOString()
     };
     list.push(newItem);
@@ -353,7 +483,8 @@ class DBService {
     const list = this.getAarti();
     const idx = list.findIndex(a => a.id === id);
     if (idx !== -1) {
-      list[idx] = { ...list[idx], ...data };
+      const derivedYear = data.year || this.deriveYearFromDate(data.date);
+      list[idx] = { ...list[idx], ...data, year: derivedYear };
       localStorage.setItem(KEYS.AARTI, JSON.stringify(list));
     }
   }
@@ -372,7 +503,17 @@ class DBService {
     const income = vargani + jama;
     const balance = income - kharch;
 
-    return { vargani, jama, kharch, income, balance };
+    const fdSummary = this.getBankFDSummary();
+
+    return {
+      vargani,
+      jama,
+      kharch,
+      income,
+      balance,
+      bank_fd_balance: fdSummary.current_fd_balance,
+      total_assets: balance + fdSummary.current_fd_balance
+    };
   }
 
   getKharchByCategory(year) {
@@ -394,7 +535,8 @@ class DBService {
       vargani: this.getVargani(),
       jama: this.getJama(),
       kharch: this.getKharch(),
-      aarti: this.getAarti()
+      aarti: this.getAarti(),
+      bank_fd: this.getBankFD()
     };
   }
 
@@ -408,6 +550,7 @@ class DBService {
     if (data.jama) localStorage.setItem(KEYS.JAMA, JSON.stringify(data.jama));
     if (data.kharch) localStorage.setItem(KEYS.KHARCH, JSON.stringify(data.kharch));
     if (data.aarti) localStorage.setItem(KEYS.AARTI, JSON.stringify(data.aarti));
+    if (data.bank_fd) localStorage.setItem(KEYS.BANK_FD, JSON.stringify(data.bank_fd));
   }
 }
 
