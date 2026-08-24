@@ -186,7 +186,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
   };
 
   return (
-    <div style={{ padding: 12, fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif' }} className="animate-fade-in">
+    <div style={{ width: '100%', boxSizing: 'border-box' }} className="animate-fade-in">
       {/* Banner Header */}
       <div style={{
         background: 'linear-gradient(135deg, #059669 0%, #10B981 50%, #34D399 100%)',

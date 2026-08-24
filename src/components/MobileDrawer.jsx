@@ -1,53 +1,54 @@
 import React from 'react';
-import { X, ShieldCheck, Eye, RefreshCw, Settings, LayoutDashboard, HeartHandshake, ArrowDownCircle, ArrowUpCircle, Flame, Landmark, BarChart3 } from 'lucide-react';
+import { X, ShieldCheck, Eye, RefreshCw, Settings, LayoutDashboard, HeartHandshake, ArrowDownCircle, ArrowUpCircle, Flame, Landmark, BarChart3, LogOut } from 'lucide-react';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'vargani', label: 'Donations (वर्गणी)', icon: HeartHandshake },
   { id: 'jama', label: 'Income (जमा)', icon: ArrowDownCircle },
   { id: 'kharch', label: 'Expenses (खर्च)', icon: ArrowUpCircle },
-  { id: 'aarti', label: 'Aarti 🚩 (आरती)', icon: Flame },
+  { id: 'aarti', label: 'Aarti  (आरती)', icon: Flame },
   { id: 'bank', label: 'Bank FD 🏦 (बँक ठेव)', icon: Landmark },
   { id: 'reports', label: 'Reports (रिपोर्ट)', icon: BarChart3 }
 ];
 
-export default function MobileDrawer({ isOpen, onClose, isAdmin, activeTab, onChangeTab, onRefresh, onOpenSettings }) {
+export default function MobileDrawer({ isOpen, onClose, isAdmin, activeTab, onChangeTab, onRefresh, onOpenSettings, onLogout }) {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose} style={{ alignItems: 'flex-start', justifyContent: 'flex-end', padding: 0 }}>
+    <div className="modal-overlay" onClick={onClose} style={{ alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div
         className="animate-fade-in"
         onClick={e => e.stopPropagation()}
         style={{
           width: '100%',
-          maxWidth: 320,
-          height: '100vh',
+          maxWidth: 340,
+          maxHeight: '85vh',
           background: '#0F172A',
           color: '#ffffff',
-          boxShadow: '-10px 0 30px rgba(0,0,0,0.6)',
+          borderRadius: 24,
+          boxShadow: '0 25px 60px rgba(0,0,0,0.7)',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'space-between',
+          justify: 'space-between',
           padding: '20px 18px',
-          borderLeft: '1px solid rgba(255,255,255,0.1)',
+          border: '1px solid rgba(255,255,255,0.12)',
           overflowY: 'auto'
         }}
       >
         <div>
-          {/* Header Card with Ganesha Murti Logo & User Role */}
+          {/* Header Card with Ganesha Emblem & Role */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            paddingBottom: 16, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.1)'
+            paddingBottom: 14, marginBottom: 14, borderBottom: '1px solid rgba(255,255,255,0.1)'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <img
                 src="./ganesh_icon.png"
-                alt="Ganesh Murti"
+                alt="Ganesh Emblem"
                 style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 14,
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
                   objectFit: 'cover',
                   border: '1.5px solid #FFD700',
                   boxShadow: '0 4px 14px rgba(255, 87, 34, 0.4)'
@@ -73,10 +74,10 @@ export default function MobileDrawer({ isOpen, onClose, isAdmin, activeTab, onCh
             </button>
           </div>
 
-          {/* Menu Links */}
+          {/* Menu Navigation Links */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 }}>
-              MAIN NAVIGATION
+            <span style={{ fontSize: 11, fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 2 }}>
+              NAVIGATION MENU
             </span>
             {TABS.map(tab => {
               const Icon = tab.icon;
@@ -93,8 +94,8 @@ export default function MobileDrawer({ isOpen, onClose, isAdmin, activeTab, onCh
                     color: isActive ? '#ffffff' : '#CBD5E1',
                     border: isActive ? 'none' : '1px solid rgba(255,255,255,0.06)',
                     borderRadius: 14,
-                    padding: '12px 14px',
-                    fontSize: 14,
+                    padding: '11px 14px',
+                    fontSize: 13,
                     fontWeight: 800,
                     cursor: 'pointer',
                     display: 'flex',
@@ -114,7 +115,7 @@ export default function MobileDrawer({ isOpen, onClose, isAdmin, activeTab, onCh
         </div>
 
         {/* Footer Actions */}
-        <div style={{ paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ paddingTop: 14, marginTop: 14, borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <button
             onClick={() => {
               onRefresh();
@@ -122,12 +123,12 @@ export default function MobileDrawer({ isOpen, onClose, isAdmin, activeTab, onCh
             }}
             style={{
               background: 'rgba(255,255,255,0.08)', color: '#ffffff',
-              border: '1px solid rgba(255,255,255,0.12)', borderRadius: 14,
-              padding: '12px', fontSize: 13, fontWeight: 800,
+              border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12,
+              padding: '10px', fontSize: 12, fontWeight: 800,
               cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
             }}
           >
-            <RefreshCw size={16} /> Refresh Data (डेटा रिफ्रेश करा)
+            <RefreshCw size={15} /> Refresh Data
           </button>
 
           {isAdmin && (
@@ -138,15 +139,30 @@ export default function MobileDrawer({ isOpen, onClose, isAdmin, activeTab, onCh
               }}
               style={{
                 background: 'linear-gradient(135deg, #FF5722, #F4511E)', color: '#ffffff',
-                border: 'none', borderRadius: 14,
-                padding: '12px', fontSize: 13, fontWeight: 800,
+                border: 'none', borderRadius: 12,
+                padding: '10px', fontSize: 12, fontWeight: 800,
                 cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 boxShadow: '0 4px 14px rgba(255, 87, 34, 0.35)'
               }}
             >
-              <Settings size={16} /> System Settings (सेटिंद्ज)
+              <Settings size={15} /> System Settings
             </button>
           )}
+
+          <button
+            onClick={() => {
+              onLogout();
+              onClose();
+            }}
+            style={{
+              background: 'rgba(239, 68, 68, 0.15)', color: '#F87171',
+              border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 12,
+              padding: '10px', fontSize: 12, fontWeight: 800,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+            }}
+          >
+            <LogOut size={15} /> Log Out (बाहेर पडा)
+          </button>
         </div>
       </div>
     </div>

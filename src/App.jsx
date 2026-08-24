@@ -72,6 +72,14 @@ export default function App() {
     setActiveYear(s.active_year || '2026-27');
   };
 
+  const handleLogout = () => {
+    sessionStorage.removeItem('rajmudra_auth');
+    sessionStorage.removeItem('rajmudra_is_admin');
+    sessionStorage.removeItem('rajmudra_active_tab');
+    setIsAuthenticated(false);
+    setIsAdmin(false);
+  };
+
   const handleRefresh = () => {
     const s = db.getSettings();
     setActiveYear(s.active_year || '2026-27');
@@ -93,6 +101,7 @@ export default function App() {
         onChangeTab={handleTabChange}
         onOpenSettings={handleOpenSettings}
         onRefresh={handleRefresh}
+        onLogout={handleLogout}
         onYearChange={(y) => setActiveYear(y)}
       />
 
@@ -106,7 +115,7 @@ export default function App() {
         {activeTab === 'reports' && <ReportsModule activeYear={activeYear} />}
       </main>
 
-      <BottomNav activeTab={activeTab} onChangeTab={handleTabChange} />
+      <BottomNav isAdmin={isAdmin} activeTab={activeTab} onChangeTab={handleTabChange} />
 
       {showSettings && (
         <SettingsModal

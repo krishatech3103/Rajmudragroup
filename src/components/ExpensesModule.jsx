@@ -106,7 +106,7 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate }) {
   };
 
   return (
-    <div style={{ padding: 12, fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif' }} className="animate-fade-in">
+    <div style={{ width: '100%', boxSizing: 'border-box' }} className="animate-fade-in">
       {/* Banner */}
       <div style={{
         background: 'linear-gradient(135deg, #DC2626 0%, #EF4444 50%, #F87171 100%)',

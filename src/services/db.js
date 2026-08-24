@@ -28,25 +28,31 @@ class DBService {
     if (!localStorage.getItem(KEYS.SETTINGS)) {
       localStorage.setItem(KEYS.SETTINGS, JSON.stringify(defaultSettings));
     }
+
+    // Completely wipe all records so user starts 100% fresh with blank ledger
+    if (!localStorage.getItem('rajmudra_fresh_wipe_v3')) {
+      this.wipeAllData();
+      localStorage.setItem('rajmudra_fresh_wipe_v3', 'true');
+    }
+
     if (!localStorage.getItem(KEYS.MEMBERS)) localStorage.setItem(KEYS.MEMBERS, JSON.stringify([]));
     if (!localStorage.getItem(KEYS.VARGANI)) localStorage.setItem(KEYS.VARGANI, JSON.stringify([]));
+    if (!localStorage.getItem(KEYS.JAMA)) localStorage.setItem(KEYS.JAMA, JSON.stringify([]));
+    if (!localStorage.getItem(KEYS.KHARCH)) localStorage.setItem(KEYS.KHARCH, JSON.stringify([]));
     if (!localStorage.getItem(KEYS.AARTI)) localStorage.setItem(KEYS.AARTI, JSON.stringify([]));
-
-    // Remove old pre-seeded audit locked records so user has 100% manual control
-    let jamaList = JSON.parse(localStorage.getItem(KEYS.JAMA) || '[]');
-    jamaList = jamaList.filter(j => !j.id.toString().startsWith('audit_'));
-    localStorage.setItem(KEYS.JAMA, JSON.stringify(jamaList));
-
-    let kharchList = JSON.parse(localStorage.getItem(KEYS.KHARCH) || '[]');
-    kharchList = kharchList.filter(k => !k.id.toString().startsWith('audit_'));
-    localStorage.setItem(KEYS.KHARCH, JSON.stringify(kharchList));
-
-    let fdList = JSON.parse(localStorage.getItem(KEYS.BANK_FD) || '[]');
-    fdList = fdList.filter(f => !f.id.toString().startsWith('audit_'));
-    localStorage.setItem(KEYS.BANK_FD, JSON.stringify(fdList));
+    if (!localStorage.getItem(KEYS.BANK_FD)) localStorage.setItem(KEYS.BANK_FD, JSON.stringify([]));
 
     // Auto-clean Aarti entries older than 30 days
     this.cleanOldAarti();
+  }
+
+  wipeAllData() {
+    localStorage.setItem(KEYS.MEMBERS, JSON.stringify([]));
+    localStorage.setItem(KEYS.VARGANI, JSON.stringify([]));
+    localStorage.setItem(KEYS.JAMA, JSON.stringify([]));
+    localStorage.setItem(KEYS.KHARCH, JSON.stringify([]));
+    localStorage.setItem(KEYS.AARTI, JSON.stringify([]));
+    localStorage.setItem(KEYS.BANK_FD, JSON.stringify([]));
   }
 
   // Auto-delete Aarti schedule entries older than 30 days to avoid unnecessary DB load
@@ -118,12 +124,26 @@ class DBService {
   }
 
   // ── MEMBERS ───────────────────────────────────────────────────────────────
-  getMembers() {
-    return JSON.parse(localStorage.getItem(KEYS.MEMBERS) || '[]');
+  getMembers(year = null) {
+    const vargani = this.getVargani(year);
+    const membersMap = new Map();
+
+    vargani.forEach(v => {
+      if (v.member_id && v.member_name) {
+        membersMap.set(v.member_id, {
+          id: v.member_id,
+          name: v.member_name,
+          phone: v.phone || '',
+          status: v.status || 'paid'
+        });
+      }
+    });
+
+    return Array.from(membersMap.values());
   }
 
   upsertMember(name, phone = '', address = '') {
-    const members = this.getMembers();
+    const members = JSON.parse(localStorage.getItem(KEYS.MEMBERS) || '[]');
     const cleanName = name.trim();
     const existing = members.find(m => m.name.toLowerCase() === cleanName.toLowerCase());
     if (existing) return existing;
@@ -165,6 +185,7 @@ class DBService {
     const derivedYear = data.year || this.deriveYearFromDate(data.date);
     const newItem = {
       id: Date.now(),
+      status: 'paid', // Default status: paid
       ...data,
       year: derivedYear,
       created_at: new Date().toISOString()
@@ -403,11 +424,19 @@ class DBService {
 
   // ── CALCULATIONS ─────────────────────────────────────────────────────────
   getSummary(year) {
-    const vargani = this.getVargani(year).reduce((sum, v) => sum + Number(v.amount), 0);
+    const varganiList = this.getVargani(year);
+    const vargani = varganiList.reduce((sum, v) => sum + Number(v.amount), 0);
     const jama = this.getJama(year).reduce((sum, j) => sum + Number(j.amount), 0);
     const kharch = this.getKharch(year).reduce((sum, k) => sum + Number(k.amount), 0);
     const income = vargani + jama;
     const balance = income - kharch;
+
+    const paidVarganiList = varganiList.filter(v => (v.status || 'paid') === 'paid');
+    const pendingVarganiList = varganiList.filter(v => v.status === 'pending');
+
+    const membersCount = this.getMembers(year).length;
+    const paidMembersCount = new Set(paidVarganiList.map(v => v.member_name)).size;
+    const pendingMembersCount = new Set(pendingVarganiList.map(v => v.member_name)).size;
 
     const fdSummary = this.getBankFDSummary();
 
@@ -417,6 +446,11 @@ class DBService {
       kharch,
       income,
       balance,
+      membersCount,
+      paidMembersCount,
+      pendingMembersCount,
+      paidVarganiCount: paidVarganiList.length,
+      pendingVarganiCount: pendingVarganiList.length,
       bank_fd_balance: fdSummary.current_fd_balance,
       total_assets: balance + fdSummary.current_fd_balance
     };

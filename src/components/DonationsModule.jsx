@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { Plus, Search, MessageSquare, Edit, Trash2, X, HeartHandshake, Languages, ChevronDown, ChevronUp, History } from 'lucide-react';
+import { Plus, Search, MessageSquare, Edit, Trash2, X, HeartHandshake, Languages, ChevronDown, ChevronUp, History, CheckCircle2, Clock } from 'lucide-react';
 import { db } from '../services/db';
 import { generateWhatsAppReceipt } from '../utils/whatsapp';
 import { transliterateText } from '../utils/marathiTransliterate';
 import MemberHistoryModal from './MemberHistoryModal';
 
-export default function DonationsModule({ isAdmin, activeYear, onUpdate }) {
+export default function DonationsModule({ isAdmin, activeYear, onUpdate, initialFilter = 'all' }) {
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState(initialFilter); // 'all', 'paid', 'pending'
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [selectedMemberHistory, setSelectedMemberHistory] = useState(null);
@@ -16,17 +17,21 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate }) {
   const [memberName, setMemberName] = useState('');
   const [phone, setPhone] = useState('');
   const [amount, setAmount] = useState('');
+  const [status, setStatus] = useState('paid'); // 'paid' or 'pending'
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');
 
-  const members = db.getMembers();
+  const members = db.getMembers(activeYear);
   const varganiList = db.getVargani(activeYear);
   const totalVargani = varganiList.reduce((sum, v) => sum + Number(v.amount), 0);
 
-  const filtered = varganiList.filter(v =>
-    v.member_name.toLowerCase().includes(search.toLowerCase()) ||
-    (v.note || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = varganiList.filter(v => {
+    const vStatus = v.status || 'paid';
+    const matchesSearch = v.member_name.toLowerCase().includes(search.toLowerCase()) ||
+                          (v.note || '').toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || vStatus === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const openForm = (item = null) => {
     if (!isAdmin) return;
@@ -35,6 +40,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate }) {
       setMemberName(item.member_name);
       setPhone(item.phone || '');
       setAmount(item.amount);
+      setStatus(item.status || 'paid');
       setDate(item.date);
       setNote(item.note || '');
     } else {
@@ -42,6 +48,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate }) {
       setMemberName('');
       setPhone('');
       setAmount('');
+      setStatus('paid');
       setDate(new Date().toISOString().split('T')[0]);
       setNote('');
     }
@@ -75,6 +82,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate }) {
         member_name: memberObj.name,
         phone: phone.trim() || memberObj.phone,
         amount: numAmt,
+        status,
         date,
         note: note.trim()
       });
@@ -85,12 +93,20 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate }) {
         phone: phone.trim() || memberObj.phone,
         year: activeYear,
         amount: numAmt,
+        status,
         date,
         note: note.trim()
       });
     }
 
     setShowModal(false);
+    onUpdate();
+  };
+
+  const toggleStatus = (item) => {
+    if (!isAdmin) return;
+    const nextStatus = (item.status || 'paid') === 'paid' ? 'pending' : 'paid';
+    db.updateVargani(item.id, { status: nextStatus });
     onUpdate();
   };
 
@@ -107,7 +123,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate }) {
   };
 
   return (
-    <div style={{ padding: 12, fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif' }} className="animate-fade-in">
+    <div style={{ width: '100%', boxSizing: 'border-box' }} className="animate-fade-in">
       {/* Top Banner */}
       <div style={{
         background: 'linear-gradient(135deg, #1D4ED8 0%, #2563EB 50%, #3B82F6 100%)',
@@ -127,7 +143,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate }) {
             <HeartHandshake size={20} color="#93C5FD" /> Member Donations
           </h2>
           <span style={{ fontSize: 12, opacity: 0.85, fontWeight: 600, display: 'block', marginTop: 2 }}>
-            Festival Year {activeYear}
+            Festival Year {activeYear} • {members.length} Active Members
           </span>
         </div>
 
@@ -139,6 +155,31 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate }) {
             {varganiList.length} Receipts
           </span>
         </div>
+      </div>
+
+      {/* Filter Tabs for Status: All, Paid, Pending */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, overflowX: 'auto' }}>
+        <button
+          onClick={() => setStatusFilter('all')}
+          className={`category-pill ${statusFilter === 'all' ? 'active' : ''}`}
+          style={{ background: statusFilter === 'all' ? '#1D4ED8' : undefined, borderColor: statusFilter === 'all' ? '#1D4ED8' : undefined }}
+        >
+          All Records ({varganiList.length})
+        </button>
+        <button
+          onClick={() => setStatusFilter('paid')}
+          className={`category-pill ${statusFilter === 'paid' ? 'active' : ''}`}
+          style={{ background: statusFilter === 'paid' ? '#15803D' : undefined, borderColor: statusFilter === 'paid' ? '#15803D' : undefined }}
+        >
+          Paid (जमा: {varganiList.filter(v => (v.status || 'paid') === 'paid').length})
+        </button>
+        <button
+          onClick={() => setStatusFilter('pending')}
+          className={`category-pill ${statusFilter === 'pending' ? 'active' : ''}`}
+          style={{ background: statusFilter === 'pending' ? '#D97706' : undefined, borderColor: statusFilter === 'pending' ? '#D97706' : undefined }}
+        >
+          Pending (बाकी: {varganiList.filter(v => v.status === 'pending').length})
+        </button>
       </div>
 
       {/* Search & Add Bar */}
@@ -176,6 +217,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filtered.map(v => {
             const isExpanded = expandedId === v.id;
+            const isPaid = (v.status || 'paid') === 'paid';
             return (
               <div
                 key={v.id}
@@ -190,26 +232,42 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate }) {
                 }}
                 onClick={() => toggleExpand(v.id)}
               >
-                {/* Main Card Summary Row (Name, Amount, Date - Clean layout without avatar) */}
+                {/* Main Card Summary Row */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                   <div style={{ flex: 1, minWidth: 0, paddingRight: 10 }}>
-                    <h4 style={{ fontSize: 16, fontWeight: 900, margin: 0, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {v.member_name}
-                    </h4>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <h4 style={{ fontSize: 16, fontWeight: 900, margin: 0, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {v.member_name}
+                      </h4>
+                      {/* Paid / Pending Status Badge */}
+                      <span
+                        onClick={(e) => { e.stopPropagation(); toggleStatus(v); }}
+                        style={{
+                          background: isPaid ? '#DCFCE7' : '#FEF3C7',
+                          color: isPaid ? '#15803D' : '#B45309',
+                          border: isPaid ? '1px solid #86EFAC' : '1px solid #FDE68A',
+                          padding: '2px 8px', borderRadius: 8, fontSize: 10, fontWeight: 800,
+                          cursor: isAdmin ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 3
+                        }}
+                      >
+                        {isPaid ? <CheckCircle2 size={11} /> : <Clock size={11} />}
+                        {isPaid ? 'PAID (जमा)' : 'PENDING (बाकी)'}
+                      </span>
+                    </div>
                     <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, margin: '2px 0 0 0' }}>
                       {new Date(v.date).toLocaleDateString('en-IN')} {v.note ? `• ${v.note}` : ''}
                     </p>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                    <span style={{ fontSize: 16, fontWeight: 900, color: '#1D4ED8' }}>
+                    <span style={{ fontSize: 16, fontWeight: 900, color: isPaid ? '#1D4ED8' : '#D97706' }}>
                       Rs. {Number(v.amount).toLocaleString('en-IN')}
                     </span>
                     {isExpanded ? <ChevronUp size={18} color="#FF5722" /> : <ChevronDown size={18} color="#94A3B8" />}
                   </div>
                 </div>
 
-                {/* Expanded Action Tray (Fits 100% inside card width without overflowing) */}
+                {/* Expanded Action Tray */}
                 {isExpanded && (
                   <div
                     onClick={e => e.stopPropagation()}
@@ -219,7 +277,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate }) {
                       borderTop: '1px solid #F1F5F9',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'space-between',
+                      justify: 'space-between',
                       gap: 8,
                       flexWrap: 'wrap'
                     }}
@@ -357,6 +415,42 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate }) {
                   placeholder="e.g. 1000"
                   required
                 />
+              </div>
+
+              {/* Status Picker: Paid vs Pending */}
+              <div className="input-group">
+                <label className="input-label">Payment Status (रक्कम स्थिती) *</label>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setStatus('paid')}
+                    style={{
+                      flex: 1, padding: '10px', borderRadius: 12,
+                      border: status === 'paid' ? '2px solid #15803D' : '1px solid #CBD5E1',
+                      background: status === 'paid' ? '#DCFCE7' : '#ffffff',
+                      color: status === 'paid' ? '#15803D' : '#64748B',
+                      fontWeight: 800, fontSize: 13, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                    }}
+                  >
+                    <CheckCircle2 size={16} /> Paid (जमा प्राप्त)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setStatus('pending')}
+                    style={{
+                      flex: 1, padding: '10px', borderRadius: 12,
+                      border: status === 'pending' ? '2px solid #D97706' : '1px solid #CBD5E1',
+                      background: status === 'pending' ? '#FEF3C7' : '#ffffff',
+                      color: status === 'pending' ? '#B45309' : '#64748B',
+                      fontWeight: 800, fontSize: 13, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                    }}
+                  >
+                    <Clock size={16} /> Pending (बाकी)
+                  </button>
+                </div>
               </div>
 
               <div className="input-group">

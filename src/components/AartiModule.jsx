@@ -112,7 +112,7 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate }) {
   };
 
   return (
-    <div className="animate-fade-in">
+    <div style={{ width: '100%', boxSizing: 'border-box' }} className="animate-fade-in">
       {/* Aarti Banner */}
       <div style={{
         background: 'linear-gradient(135deg, #D84315 0%, #FF5722 50%, #FF9100 100%)',

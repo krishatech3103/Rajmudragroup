@@ -152,7 +152,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate }) {
   const todayStr = new Date().toISOString().split('T')[0];
 
   return (
-    <div style={{ padding: '16px 20px 28px 20px', fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif' }} className="animate-fade-in">
+    <div style={{ width: '100%', boxSizing: 'border-box' }} className="animate-fade-in">
       {/* Top Banner */}
       <div style={{
         background: 'linear-gradient(135deg, #065F46 0%, #047857 50%, #059669 100%)',

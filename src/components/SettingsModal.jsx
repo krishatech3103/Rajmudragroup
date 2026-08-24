@@ -190,10 +190,10 @@ export default function SettingsModal({ onClose, onUpdate }) {
           </form>
         </div>
 
-        {/* 3. JSON Backup & Restore */}
+        {/* 3. JSON Backup & Restore & Data Reset */}
         <div className="luxe-card" style={{ marginBottom: 14 }}>
           <h4 style={{ fontSize: 14, fontWeight: 800, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, color: '#059669' }}>
-            <Download size={18} /> 3. Offline JSON Backup & Restore
+            <Download size={18} /> 3. Offline JSON Backup & Data Management
           </h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <button className="btn btn-success" onClick={handleExportJSON} style={{ padding: 12, fontSize: 13, borderRadius: 14 }}>
@@ -204,6 +204,24 @@ export default function SettingsModal({ onClose, onUpdate }) {
               <Upload size={18} /> Import JSON Backup File
               <input type="file" accept=".json" onChange={handleImportJSON} style={{ display: 'none' }} />
             </label>
+
+            <button
+              onClick={() => {
+                if (confirm('Are you sure you want to delete ALL records (Donations, Income, Expenses, Bank FD, Aarti)? This action cannot be undone!')) {
+                  db.wipeAllData();
+                  alert('All records have been completely deleted!');
+                  onUpdate();
+                  onClose();
+                }
+              }}
+              style={{
+                background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#DC2626', padding: 12, fontSize: 13, fontWeight: 800, borderRadius: 14,
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+              }}
+            >
+              🗑️ Clear / Delete All Records (सर्व डेटा हटवा)
+            </button>
           </div>
         </div>
 

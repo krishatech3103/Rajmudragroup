@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, X, Smartphone } from 'lucide-react';
+import { Download, Smartphone } from 'lucide-react';
 
 export default function PWAInstallBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -32,7 +32,6 @@ export default function PWAInstallBanner() {
       }
       setDeferredPrompt(null);
     } else {
-      // Show guide modal for browsers like iOS Safari or mobile Chrome without automatic prompt
       setShowGuideModal(true);
     }
   };
@@ -46,7 +45,7 @@ export default function PWAInstallBanner() {
 
   return (
     <>
-      {/* Centered PWA Banner Card */}
+      {/* Centered PWA Banner Card with SINGLE Close Button */}
       <div style={{
         position: 'fixed',
         top: 70,
@@ -67,56 +66,32 @@ export default function PWAInstallBanner() {
         boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7)',
         boxSizing: 'border-box'
       }} className="animate-fade-in">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <img
-              src="./ganesh_icon.png"
-              alt="Rajmudra Group Icon"
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 14,
-                objectFit: 'cover',
-                border: '1.5px solid #FFD700',
-                boxShadow: '0 4px 14px rgba(255, 87, 34, 0.4)',
-                flexShrink: 0
-              }}
-            />
-            <div>
-              <h4 style={{ fontSize: 15, fontWeight: 900, margin: 0, color: '#ffffff' }}>
-                Rajmudra Group App
-              </h4>
-              <span style={{ fontSize: 12, color: '#FFD700', fontWeight: 800 }}>
-                📲 Install App on Phone Home Screen
-              </span>
-            </div>
-          </div>
-
-          {/* Prominent High-Visibility X Close Button */}
-          <button
-            onClick={handleDismiss}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <img
+            src="./ganesh_icon.png"
+            alt="Rajmudra Group Icon"
             style={{
-              background: 'rgba(239, 68, 68, 0.2)',
-              border: '1px solid rgba(239, 68, 68, 0.4)',
-              color: '#F87171',
-              cursor: 'pointer',
-              width: 34,
-              height: 34,
-              borderRadius: 10,
-              display: 'flex',
-              alignItems: 'center',
-              justify: 'center',
-              flexShrink: 0,
-              transition: 'all 0.2s ease'
+              width: 44,
+              height: 44,
+              borderRadius: 14,
+              objectFit: 'cover',
+              border: '1.5px solid #FFD700',
+              boxShadow: '0 4px 14px rgba(255, 87, 34, 0.4)',
+              flexShrink: 0
             }}
-            title="Close Banner (बंद करा)"
-          >
-            <X size={20} />
-          </button>
+          />
+          <div>
+            <h4 style={{ fontSize: 15, fontWeight: 900, margin: 0, color: '#ffffff' }}>
+              Rajmudra Group App
+            </h4>
+            <span style={{ fontSize: 12, color: '#FFD700', fontWeight: 800 }}>
+              📲 Install App on Phone Home Screen
+            </span>
+          </div>
         </div>
 
-        {/* 100% Full-Width Clickable Install Action Button */}
-        <div style={{ display: 'flex', gap: 8 }}>
+        {/* Action Buttons: Single Close button + 100% Install button */}
+        <div style={{ display: 'flex', gap: 10 }}>
           <button
             onClick={handleInstallClick}
             style={{
@@ -136,17 +111,17 @@ export default function PWAInstallBanner() {
               boxShadow: '0 6px 20px rgba(255, 87, 34, 0.45)'
             }}
           >
-            <Download size={18} /> Install Rajmudra App (अॅप इंस्टॉल करा)
+            <Download size={18} /> Install Rajmudra App
           </button>
 
           <button
             onClick={handleDismiss}
             style={{
-              background: 'rgba(255,255,255,0.08)',
+              background: 'rgba(255,255,255,0.1)',
               color: '#CBD5E1',
-              border: '1px solid rgba(255,255,255,0.15)',
+              border: '1px solid rgba(255,255,255,0.2)',
               borderRadius: 14,
-              padding: '12px 14px',
+              padding: '12px 18px',
               fontSize: 13,
               fontWeight: 800,
               cursor: 'pointer'
@@ -157,7 +132,7 @@ export default function PWAInstallBanner() {
         </div>
       </div>
 
-      {/* Guide Modal for iOS / Web Installation */}
+      {/* Guide Modal strictly in English */}
       {showGuideModal && (
         <div className="modal-overlay" onClick={() => setShowGuideModal(false)}>
           <div className="modal-sheet animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
@@ -188,7 +163,7 @@ export default function PWAInstallBanner() {
               <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                 <span style={{ background: '#FF5722', color: '#ffffff', width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, flexShrink: 0 }}>2</span>
                 <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>
-                  Select <strong>"Add to Home Screen" (होम स्क्रीनवर जोडा)</strong> or <strong>"Install App"</strong>.
+                  Select <strong>"Add to Home Screen"</strong> or <strong>"Install App"</strong>.
                 </span>
               </div>
             </div>
@@ -198,7 +173,7 @@ export default function PWAInstallBanner() {
               className="btn btn-primary"
               style={{ width: '100%', padding: '14px' }}
             >
-              Got It (समजले)
+              Got It
             </button>
           </div>
         </div>

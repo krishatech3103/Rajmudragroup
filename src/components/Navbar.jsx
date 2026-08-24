@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, Calendar, LayoutDashboard, HeartHandshake, ArrowDownCircle, ArrowUpCircle, Flame, Landmark, BarChart3, ShieldCheck, Eye, RefreshCw, Settings } from 'lucide-react';
-import { db } from '../services/db';
+import { Menu, Calendar, LayoutDashboard, HeartHandshake, ArrowDownCircle, ArrowUpCircle, Flame, Landmark, BarChart3, ShieldCheck, Eye, RefreshCw, Settings, LogOut } from 'lucide-react';
 import MobileDrawer from './MobileDrawer';
 
 const TABS = [
@@ -8,22 +7,13 @@ const TABS = [
   { id: 'vargani', label: 'Donations', icon: HeartHandshake },
   { id: 'jama', label: 'Income', icon: ArrowDownCircle },
   { id: 'kharch', label: 'Expenses', icon: ArrowUpCircle },
-  { id: 'aarti', label: 'Aarti 🚩', icon: Flame },
+  { id: 'aarti', label: 'Aarti ', icon: Flame },
   { id: 'bank', label: 'Bank FD 🏦', icon: Landmark },
   { id: 'reports', label: 'Reports', icon: BarChart3 }
 ];
 
-export default function Navbar({ isAdmin, activeYear, activeTab, onChangeTab, onOpenSettings, onRefresh, onYearChange }) {
+export default function Navbar({ isAdmin, activeYear, activeTab, onChangeTab, onOpenSettings, onRefresh, onLogout }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const availableYears = db.getAvailableYears();
-  if (!availableYears.includes(activeYear)) availableYears.push(activeYear);
-
-  const handleSelectYear = (e) => {
-    const newYear = e.target.value;
-    db.setSetting('active_year', newYear);
-    if (onYearChange) onYearChange(newYear);
-    onRefresh();
-  };
 
   return (
     <>
@@ -40,11 +30,11 @@ export default function Navbar({ isAdmin, activeYear, activeTab, onChangeTab, on
         borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-          {/* Brand Logo with Ganesha Murti Emblem & Title */}
+          {/* Brand Logo with Emblem & Static Small Year Text */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <img
               src="./ganesh_icon.png"
-              alt="Ganesh Murti Emblem"
+              alt="Ganesh Emblem"
               style={{
                 width: 38,
                 height: 38,
@@ -59,31 +49,13 @@ export default function Navbar({ isAdmin, activeYear, activeTab, onChangeTab, on
               <h1 style={{ fontSize: 16, fontWeight: 900, margin: 0, color: '#ffffff', letterSpacing: -0.3 }}>
                 Rajmudra Group
               </h1>
-              
-              {/* Year Dropdown */}
+
+              {/* Static Small Year Text */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
                 <Calendar size={11} color="#FF9100" />
-                <select
-                  value={activeYear}
-                  onChange={handleSelectYear}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.12)',
-                    color: '#FFD700',
-                    border: '1px solid rgba(255, 255, 255, 0.25)',
-                    borderRadius: 8,
-                    fontSize: 11,
-                    fontWeight: 800,
-                    padding: '2px 6px',
-                    cursor: 'pointer',
-                    outline: 'none'
-                  }}
-                >
-                  {availableYears.map(y => (
-                    <option key={y} value={y} style={{ background: '#0F172A', color: '#ffffff' }}>
-                      Year {y}
-                    </option>
-                  ))}
-                </select>
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#FFD700', opacity: 0.9 }}>
+                  Year {activeYear}
+                </span>
               </div>
             </div>
           </div>
@@ -160,6 +132,18 @@ export default function Navbar({ isAdmin, activeYear, activeTab, onChangeTab, on
                 <Settings size={16} />
               </button>
             )}
+
+            <button
+              onClick={onLogout}
+              style={{
+                background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#F87171',
+                cursor: 'pointer', height: 34, padding: '0 12px', borderRadius: 10,
+                display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800
+              }}
+              title="Log Out"
+            >
+              <LogOut size={14} /> Log Out
+            </button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -195,6 +179,7 @@ export default function Navbar({ isAdmin, activeYear, activeTab, onChangeTab, on
         onChangeTab={onChangeTab}
         onRefresh={onRefresh}
         onOpenSettings={onOpenSettings}
+        onLogout={onLogout}
       />
     </>
   );

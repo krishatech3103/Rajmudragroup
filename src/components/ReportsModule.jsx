@@ -19,7 +19,7 @@ export default function ReportsModule({ activeYear }) {
   const fmt = (v) => `Rs. ${Number(v).toLocaleString('en-IN')}`;
 
   return (
-    <div className="animate-fade-in" style={{ padding: 20 }}>
+    <div className="animate-fade-in" style={{ width: '100%', boxSizing: 'border-box' }}>
       {/* Top Banner with Clean PDF Export Button Alignment */}
       <div style={{
         background: 'linear-gradient(135deg, #1E293B 0%, #0F172A 100%)',
