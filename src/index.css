@@ -58,7 +58,7 @@ html, body {
   transition: all 0.3s ease;
 }
 
-/* Inner Content Wrapper - Guaranteed Top Spacing Below Navbar Header */
+/* Inner Content Wrapper - Optimized Spacing for Desktop & Mobile */
 .content-wrapper {
   width: 100%;
   max-width: 1400px;
@@ -66,6 +66,12 @@ html, body {
   padding: 16px 20px 30px 20px;
   position: relative;
   z-index: 1;
+}
+
+@media (max-width: 640px) {
+  .content-wrapper {
+    padding: 12px 10px 80px 10px !important;
+  }
 }
 
 /* Keyframe Animations */
@@ -86,10 +92,10 @@ html, body {
 }
 
 .animate-fade-in {
-  animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Luxe Glass Card */
+/* Luxe Glass Card - Fits Snugly on Mobile Screens */
 .luxe-card {
   background: var(--card-bg);
   backdrop-filter: blur(20px);
@@ -102,6 +108,13 @@ html, body {
   position: relative;
 }
 
+@media (max-width: 640px) {
+  .luxe-card {
+    padding: 16px 14px !important;
+    border-radius: 18px !important;
+  }
+}
+
 .luxe-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-luxe);
@@ -110,7 +123,7 @@ html, body {
 
 /* Inputs */
 .input-group {
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .input-label {
@@ -118,18 +131,18 @@ html, body {
   font-size: 12px;
   font-weight: 800;
   color: var(--text-muted);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   text-transform: uppercase;
   letter-spacing: 0.6px;
 }
 
 .input-field {
   width: 100%;
-  padding: 14px 18px;
+  padding: 12px 16px;
   border-radius: var(--radius-sm);
   border: 1.5px solid #CBD5E1;
   background: rgba(255, 255, 255, 0.95);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-main);
   outline: none;
@@ -144,10 +157,10 @@ html, body {
 
 /* Luxe Action Buttons */
 .btn {
-  padding: 14px 22px;
+  padding: 12px 20px;
   border-radius: var(--radius-sm);
   border: none;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
   cursor: pointer;
   display: inline-flex;
@@ -203,23 +216,23 @@ html, body {
 /* Floating Bottom Navigation Bar */
 .bottom-nav {
   position: fixed;
-  bottom: 18px;
+  bottom: 14px;
   left: 50%;
   transform: translateX(-50%);
-  width: calc(100% - 36px);
+  width: calc(100% - 24px);
   max-width: 680px;
-  height: 72px;
+  height: 66px;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(255, 255, 255, 0.9);
-  border-radius: 28px;
+  border-radius: 24px;
   display: flex;
   align-items: center;
   justify-content: space-around;
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.14), 0 4px 14px rgba(255, 87, 34, 0.1);
   z-index: 100;
-  padding: 0 12px;
+  padding: 0 8px;
 }
 
 .nav-item {
@@ -231,7 +244,7 @@ html, body {
   border: none;
   background: transparent;
   color: #64748B;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   cursor: pointer;
   transition: all 0.25s ease;
@@ -244,19 +257,19 @@ html, body {
 .nav-item.active .nav-icon-wrap {
   background: linear-gradient(135deg, #FFEDD5, #FED7AA);
   color: var(--saffron-dark);
-  transform: translateY(-4px) scale(1.12);
-  box-shadow: 0 8px 18px rgba(255, 87, 34, 0.3);
+  transform: translateY(-2px) scale(1.08);
+  box-shadow: 0 6px 14px rgba(255, 87, 34, 0.3);
 }
 
 .nav-icon-wrap {
-  width: 40px;
-  height: 40px;
-  border-radius: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  margin-bottom: 3px;
+  margin-bottom: 2px;
 }
 
 /* Responsive Desktop vs Mobile Navigation Switch & Viewport Acquisition */
@@ -267,6 +280,9 @@ html, body {
   .desktop-nav-tabs {
     display: flex !important;
   }
+  .mobile-menu-btn {
+    display: none !important;
+  }
   .app-container {
     padding-bottom: 0px !important;
   }
@@ -276,15 +292,18 @@ html, body {
   .desktop-nav-tabs {
     display: none !important;
   }
-  .bottom-nav {
+  .mobile-menu-btn {
     display: flex !important;
   }
+  .bottom-nav {
+    display: none !important; /* Bottom nav replaced by clean Drawer Menu on Mobile as requested */
+  }
   .app-container {
-    padding-bottom: 95px !important;
+    padding-bottom: 20px !important;
   }
 }
 
-/* Modal Overlay & Pure Blurred Backdrop - NO White Space Leaks */
+/* Modal Overlay & Pure Centered Popups (Guaranteed 100% Horizontal & Vertical Centering) */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -298,38 +317,39 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-  overflow-y: auto;
+  padding: 14px;
+  box-sizing: border-box;
 }
 
 .modal-sheet {
   width: 100%;
-  max-width: 580px;
+  max-width: 520px;
+  margin: auto !important;
   background: #ffffff;
-  border-radius: 28px;
-  padding: 28px;
+  border-radius: 26px;
+  padding: 22px 20px;
   max-height: 88vh;
   overflow-y: auto;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.6);
   animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   border: 1px solid rgba(255, 255, 255, 0.8);
   position: relative;
   z-index: 100000;
-  margin: auto;
+  box-sizing: border-box;
 }
 
 @media (max-width: 640px) {
   .modal-overlay {
-    align-items: flex-end;
-    padding: 0;
+    align-items: center;
+    justify-content: center;
+    padding: 12px !important;
   }
   .modal-sheet {
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-    border-top-left-radius: 32px;
-    border-top-right-radius: 32px;
-    padding: 24px 24px 100px 24px;
-    max-height: 90vh;
+    border-radius: 24px !important;
+    padding: 20px 16px !important;
+    max-height: 90vh !important;
+    width: calc(100% - 8px) !important;
+    margin: auto !important;
   }
 }
 
@@ -338,7 +358,7 @@ html, body {
   height: 5px;
   background: #CBD5E1;
   border-radius: 3px;
-  margin: 0 auto 20px auto;
+  margin: 0 auto 16px auto;
 }
 
 @keyframes modalPop {
@@ -348,9 +368,9 @@ html, body {
 
 /* Category Filter Tags */
 .category-pill {
-  padding: 9px 16px;
-  border-radius: 14px;
-  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-size: 12px;
   font-weight: 700;
   border: 1px solid #CBD5E1;
   background: #ffffff;
@@ -369,7 +389,7 @@ html, body {
 
 /* Scrollbars */
 ::-webkit-scrollbar {
-  width: 7px;
+  width: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;

@@ -26,6 +26,35 @@ export default function App() {
     setActiveYear(s.active_year || '2026-27');
   }, [refreshKey]);
 
+  // Mobile Hardware Back Button Support (popstate navigation)
+  useEffect(() => {
+    const handlePopState = (e) => {
+      if (showSettings) {
+        setShowSettings(false);
+        return;
+      }
+      if (activeTab !== 'dashboard') {
+        setActiveTab('dashboard');
+        return;
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [showSettings, activeTab]);
+
+  const handleTabChange = (newTab) => {
+    if (newTab !== activeTab) {
+      window.history.pushState({ tab: newTab }, '');
+      setActiveTab(newTab);
+    }
+  };
+
+  const handleOpenSettings = () => {
+    window.history.pushState({ modal: 'settings' }, '');
+    setShowSettings(true);
+  };
+
   const handlePinSuccess = (adminFlag) => {
     setIsAdmin(adminFlag);
     setIsAuthenticated(true);
@@ -51,14 +80,14 @@ export default function App() {
         isAdmin={isAdmin}
         activeYear={activeYear}
         activeTab={activeTab}
-        onChangeTab={setActiveTab}
-        onOpenSettings={() => setShowSettings(true)}
+        onChangeTab={handleTabChange}
+        onOpenSettings={handleOpenSettings}
         onRefresh={handleRefresh}
         onYearChange={(y) => setActiveYear(y)}
       />
 
       <main key={refreshKey} className="content-wrapper">
-        {activeTab === 'dashboard' && <Dashboard isAdmin={isAdmin} activeYear={activeYear} onUpdate={handleRefresh} onNavigateTab={setActiveTab} />}
+        {activeTab === 'dashboard' && <Dashboard isAdmin={isAdmin} activeYear={activeYear} onUpdate={handleRefresh} onNavigateTab={handleTabChange} />}
         {activeTab === 'vargani' && <DonationsModule isAdmin={isAdmin} activeYear={activeYear} onUpdate={handleRefresh} />}
         {activeTab === 'aarti' && <AartiModule isAdmin={isAdmin} activeYear={activeYear} onUpdate={handleRefresh} />}
         {activeTab === 'bank' && <BankModule isAdmin={isAdmin} activeYear={activeYear} onUpdate={handleRefresh} />}
@@ -67,7 +96,7 @@ export default function App() {
         {activeTab === 'reports' && <ReportsModule activeYear={activeYear} />}
       </main>
 
-      <BottomNav activeTab={activeTab} onChangeTab={setActiveTab} />
+      <BottomNav activeTab={activeTab} onChangeTab={handleTabChange} />
 
       {showSettings && (
         <SettingsModal

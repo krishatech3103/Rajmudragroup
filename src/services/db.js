@@ -19,68 +19,6 @@ const defaultSettings = {
   supabase_key: ''
 };
 
-// Pre-seeded Official Locked Audit Records for 2024 & 2025
-const initialJamaRecords = [
-  {
-    id: 'audit_2024_jama_1',
-    title: 'सर्व जमा झालेली वर्गणी (Official Audit 2024)',
-    category: 'Donations',
-    amount: 33376,
-    date: '2024-09-07',
-    year: '2024-25',
-    note: 'Official Audit Record 2024 (Non-editable)',
-    is_locked: true,
-    created_at: new Date('2024-09-07').toISOString()
-  },
-  {
-    id: 'audit_2025_jama_1',
-    title: 'सर्व जमा झालेली वर्गणी (Official Audit 2025)',
-    category: 'Donations',
-    amount: 45664,
-    date: '2025-08-27',
-    year: '2025-26',
-    note: 'Official Audit Record 2025 (Non-editable)',
-    is_locked: true,
-    created_at: new Date('2025-08-27').toISOString()
-  }
-];
-
-const initialKharchRecords = [
-  {
-    id: 'audit_2024_kharch_1',
-    title: 'सर्व झालेला खर्च (2024)',
-    category: 'Other Expense',
-    amount: 32632,
-    date: '2024-09-17',
-    year: '2024-25',
-    note: 'Official Audit Record 2024 (Non-editable)',
-    is_locked: true,
-    created_at: new Date('2024-09-17').toISOString()
-  },
-  {
-    id: 'audit_2024_kharch_2',
-    title: 'कॉलनी बोर्ड करण्यासाठी खर्च (2024)',
-    category: 'Other Expense',
-    amount: 744,
-    date: '2024-09-18',
-    year: '2024-25',
-    note: 'Official Audit Record 2024 (Non-editable)',
-    is_locked: true,
-    created_at: new Date('2024-09-18').toISOString()
-  },
-  {
-    id: 'audit_2025_kharch_1',
-    title: 'सर्व झालेला खर्च (2025)',
-    category: 'Other Expense',
-    amount: 42745,
-    date: '2025-09-06',
-    year: '2025-26',
-    note: 'Official Audit Record 2025 (Non-editable)',
-    is_locked: true,
-    created_at: new Date('2025-09-06').toISOString()
-  }
-];
-
 class DBService {
   constructor() {
     this._init();
@@ -94,32 +32,17 @@ class DBService {
     if (!localStorage.getItem(KEYS.VARGANI)) localStorage.setItem(KEYS.VARGANI, JSON.stringify([]));
     if (!localStorage.getItem(KEYS.AARTI)) localStorage.setItem(KEYS.AARTI, JSON.stringify([]));
 
-    // Ensure Jama list is updated (removing pre-seeded FD receipt jama)
+    // Remove old pre-seeded audit locked records so user has 100% manual control
     let jamaList = JSON.parse(localStorage.getItem(KEYS.JAMA) || '[]');
-    jamaList = jamaList.filter(j => j.id !== 'audit_2025_jama_2');
-    initialJamaRecords.forEach(rec => {
-      if (!jamaList.some(j => j.id === rec.id)) {
-        jamaList.push(rec);
-      }
-    });
+    jamaList = jamaList.filter(j => !j.id.toString().startsWith('audit_'));
     localStorage.setItem(KEYS.JAMA, JSON.stringify(jamaList));
 
-    // Seed Kharch records
     let kharchList = JSON.parse(localStorage.getItem(KEYS.KHARCH) || '[]');
-    let kharchChanged = false;
-    initialKharchRecords.forEach(rec => {
-      if (!kharchList.some(k => k.id === rec.id)) {
-        kharchList.push(rec);
-        kharchChanged = true;
-      }
-    });
-    if (kharchChanged || !localStorage.getItem(KEYS.KHARCH)) {
-      localStorage.setItem(KEYS.KHARCH, JSON.stringify(kharchList));
-    }
+    kharchList = kharchList.filter(k => !k.id.toString().startsWith('audit_'));
+    localStorage.setItem(KEYS.KHARCH, JSON.stringify(kharchList));
 
-    // Clean pre-seeded FD records if present so user can enter manually
     let fdList = JSON.parse(localStorage.getItem(KEYS.BANK_FD) || '[]');
-    fdList = fdList.filter(f => f.id !== 'audit_2025_bank_fd_1');
+    fdList = fdList.filter(f => !f.id.toString().startsWith('audit_'));
     localStorage.setItem(KEYS.BANK_FD, JSON.stringify(fdList));
 
     // Auto-clean Aarti entries older than 30 days
@@ -161,6 +84,26 @@ class DBService {
       const curY = year.toString().slice(-2);
       return `${prevY}-${curY}`;
     }
+  }
+
+  // Get only available fiscal years present in database + current default years (2024-25, 2025-26, 2026-27)
+  getAvailableYears() {
+    const yearsSet = new Set(['2024-25', '2025-26', '2026-27']);
+    
+    const vargani = JSON.parse(localStorage.getItem(KEYS.VARGANI) || '[]');
+    const jama = JSON.parse(localStorage.getItem(KEYS.JAMA) || '[]');
+    const kharch = JSON.parse(localStorage.getItem(KEYS.KHARCH) || '[]');
+    const aarti = JSON.parse(localStorage.getItem(KEYS.AARTI) || '[]');
+    const bank = JSON.parse(localStorage.getItem(KEYS.BANK_FD) || '[]');
+
+    vargani.forEach(item => item.year && yearsSet.add(item.year));
+    jama.forEach(item => item.year && yearsSet.add(item.year));
+    kharch.forEach(item => item.year && yearsSet.add(item.year));
+    aarti.forEach(item => item.year && yearsSet.add(item.year));
+    bank.forEach(item => item.year && yearsSet.add(item.year));
+
+    // Sort chronologically
+    return Array.from(yearsSet).sort();
   }
 
   // ── SETTINGS ─────────────────────────────────────────────────────────────
@@ -235,10 +178,6 @@ class DBService {
     const list = this.getVargani();
     const idx = list.findIndex(v => v.id === id);
     if (idx !== -1) {
-      if (list[idx].is_locked) {
-        alert('Official Audit Record is non-editable!');
-        return;
-      }
       list[idx] = { ...list[idx], ...data };
       localStorage.setItem(KEYS.VARGANI, JSON.stringify(list));
     }
@@ -246,11 +185,6 @@ class DBService {
 
   deleteVargani(id) {
     const list = this.getVargani();
-    const target = list.find(v => v.id === id);
-    if (target && target.is_locked) {
-      alert('Official Audit Record cannot be deleted!');
-      return;
-    }
     const filtered = list.filter(v => v.id !== id);
     localStorage.setItem(KEYS.VARGANI, JSON.stringify(filtered));
   }
@@ -280,10 +214,6 @@ class DBService {
     const list = this.getJama();
     const idx = list.findIndex(j => j.id === id);
     if (idx !== -1) {
-      if (list[idx].is_locked) {
-        alert('Official Audit Record is non-editable!');
-        return;
-      }
       list[idx] = { ...list[idx], ...data };
       localStorage.setItem(KEYS.JAMA, JSON.stringify(list));
     }
@@ -291,11 +221,6 @@ class DBService {
 
   deleteJama(id) {
     const list = this.getJama();
-    const target = list.find(j => j.id === id);
-    if (target && target.is_locked) {
-      alert('Official Audit Record cannot be deleted!');
-      return;
-    }
     const filtered = list.filter(j => j.id !== id);
     localStorage.setItem(KEYS.JAMA, JSON.stringify(filtered));
   }
@@ -325,10 +250,6 @@ class DBService {
     const list = this.getKharch();
     const idx = list.findIndex(k => k.id === id);
     if (idx !== -1) {
-      if (list[idx].is_locked) {
-        alert('Official Audit Record is non-editable!');
-        return;
-      }
       list[idx] = { ...list[idx], ...data };
       localStorage.setItem(KEYS.KHARCH, JSON.stringify(list));
     }
@@ -336,11 +257,6 @@ class DBService {
 
   deleteKharch(id) {
     const list = this.getKharch();
-    const target = list.find(k => k.id === id);
-    if (target && target.is_locked) {
-      alert('Official Audit Record cannot be deleted!');
-      return;
-    }
     const filtered = list.filter(k => k.id !== id);
     localStorage.setItem(KEYS.KHARCH, JSON.stringify(filtered));
   }
@@ -365,7 +281,6 @@ class DBService {
     list.unshift(newItem);
     localStorage.setItem(KEYS.BANK_FD, JSON.stringify(list));
 
-    // If type is 'fd_expense', automatically post entry into Kharch table as well!
     if (data.type === 'fd_expense') {
       this.addKharch({
         title: `[FD Withdrawal Expense] ${data.title}`,
@@ -384,10 +299,6 @@ class DBService {
     const list = JSON.parse(localStorage.getItem(KEYS.BANK_FD) || '[]');
     const idx = list.findIndex(f => f.id === id);
     if (idx !== -1) {
-      if (list[idx].is_locked) {
-        alert('Official Audit Record is non-editable!');
-        return;
-      }
       const derivedYear = data.year || this.deriveYearFromDate(data.date);
       list[idx] = { ...list[idx], ...data, year: derivedYear };
       localStorage.setItem(KEYS.BANK_FD, JSON.stringify(list));
@@ -396,11 +307,6 @@ class DBService {
 
   deleteBankFD(id) {
     const list = JSON.parse(localStorage.getItem(KEYS.BANK_FD) || '[]');
-    const target = list.find(f => f.id === id);
-    if (target && target.is_locked) {
-      alert('Official Audit Record cannot be deleted!');
-      return;
-    }
     const filtered = list.filter(f => f.id !== id);
     localStorage.setItem(KEYS.BANK_FD, JSON.stringify(filtered));
   }
