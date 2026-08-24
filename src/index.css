@@ -41,11 +41,14 @@ h1, h2, h3, h4, .font-heading {
 }
 
 html, body {
-  width: 100vw;
-  min-height: 100vh;
+  width: 100%;
+  min-height: 100%;
   background: #0F172A !important;
   color: var(--text-main);
+  margin: 0;
+  padding: 0;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* 100% Full Screen Width Layout for Desktop, Laptops & Mobile */
@@ -335,6 +338,7 @@ html, body {
   padding: 22px 18px;
   max-height: 88vh;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 25px 70px rgba(0, 0, 0, 0.6);
   animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   border: 1px solid rgba(255, 255, 255, 0.8);
@@ -347,13 +351,13 @@ html, body {
   .modal-overlay {
     align-items: center;
     justify-content: center;
-    padding: 8px !important;
+    padding: 12px !important;
   }
   .modal-sheet {
     border-radius: 20px !important;
     padding: 18px 14px !important;
-    max-height: 90vh !important;
-    width: calc(100% - 4px) !important;
+    max-height: 85vh !important;
+    width: 100% !important;
     margin: auto !important;
   }
 }
