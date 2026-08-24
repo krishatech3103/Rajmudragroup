@@ -14,9 +14,15 @@ import SettingsModal from './components/SettingsModal';
 import PWAInstallBanner from './components/PWAInstallBanner';
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return sessionStorage.getItem('rajmudra_auth') === 'true';
+  });
+  const [isAdmin, setIsAdmin] = useState(() => {
+    return sessionStorage.getItem('rajmudra_is_admin') === 'true';
+  });
+  const [activeTab, setActiveTab] = useState(() => {
+    return sessionStorage.getItem('rajmudra_active_tab') || 'dashboard';
+  });
   const [activeYear, setActiveYear] = useState('2026-27');
   const [showSettings, setShowSettings] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -35,6 +41,7 @@ export default function App() {
       }
       if (activeTab !== 'dashboard') {
         setActiveTab('dashboard');
+        sessionStorage.setItem('rajmudra_active_tab', 'dashboard');
         return;
       }
     };
@@ -45,6 +52,7 @@ export default function App() {
 
   const handleTabChange = (newTab) => {
     if (newTab !== activeTab) {
+      sessionStorage.setItem('rajmudra_active_tab', newTab);
       window.history.pushState({ tab: newTab }, '');
       setActiveTab(newTab);
     }
@@ -58,6 +66,8 @@ export default function App() {
   const handlePinSuccess = (adminFlag) => {
     setIsAdmin(adminFlag);
     setIsAuthenticated(true);
+    sessionStorage.setItem('rajmudra_auth', 'true');
+    sessionStorage.setItem('rajmudra_is_admin', adminFlag ? 'true' : 'false');
     const s = db.getSettings();
     setActiveYear(s.active_year || '2026-27');
   };

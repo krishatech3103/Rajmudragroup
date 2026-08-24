@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { db } from '../services/db';
-import { Crown, Lock, User, Eye, EyeOff, ArrowRight, Calendar } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, ArrowRight, Calendar } from 'lucide-react';
 
 export default function PinModal({ onSuccess }) {
+  const availableYears = db.getAvailableYears();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedYear, setSelectedYear] = useState('2026-27');
+  const [selectedYear, setSelectedYear] = useState(availableYears[availableYears.length - 1] || '2026-27');
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
 
@@ -31,7 +32,7 @@ export default function PinModal({ onSuccess }) {
         setPassword('');
       }
     } 
-    // Check Viewer / User (Viewers can see all years!)
+    // Check Viewer / User
     else if (cleanUser === 'user' || cleanUser === 'viewer') {
       if (cleanPass === settings.viewer_pin || cleanPass === '0000') {
         db.setSetting('active_year', selectedYear);
@@ -64,18 +65,18 @@ export default function PinModal({ onSuccess }) {
 
       <div style={{ width: '100%', maxWidth: 400, position: 'relative', zIndex: 2 }} className="animate-fade-in">
         {/* Brand Emblem Header */}
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{
-            width: 84, height: 84, borderRadius: 28,
-            background: 'linear-gradient(135deg, #FF5722 0%, #FF9100 100%)',
-            color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 16px auto', boxShadow: '0 14px 40px rgba(255, 87, 34, 0.5)',
-            animation: 'floatEmblem 3s ease-in-out infinite'
-          }}>
-            <Crown size={44} color="#ffffff" />
-          </div>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <img
+            src="./ganesh_icon.png"
+            alt="Rajmudra Group Emblem"
+            style={{
+              width: 84, height: 84, borderRadius: 28,
+              objectFit: 'cover', border: '2px solid #FFD700',
+              margin: '0 auto 14px auto', boxShadow: '0 14px 40px rgba(255, 87, 34, 0.5)'
+            }}
+          />
           <h1 style={{ color: '#ffffff', fontSize: 26, fontWeight: 900, letterSpacing: -0.5 }}>
-            Rajmudra Mandal
+            Rajmudra Group
           </h1>
           <p style={{ color: '#94A3B8', fontSize: 14, fontWeight: 600, marginTop: 4 }}>
             Accounts & Finance Portal
@@ -89,17 +90,17 @@ export default function PinModal({ onSuccess }) {
           WebkitBackdropFilter: 'blur(20px)',
           border: '1px solid rgba(255, 255, 255, 0.15)',
           borderRadius: 28,
-          padding: 28,
+          padding: 24,
           boxShadow: '0 25px 60px rgba(0, 0, 0, 0.4)'
         }}>
           <form onSubmit={handleLogin}>
-            {/* Festival Year Selector */}
+            {/* Festival Year Selector (Shows ONLY available data years) */}
             <div style={{ marginBottom: 18 }}>
               <label style={{
                 display: 'block', fontSize: 12, fontWeight: 800, color: '#CBD5E1',
                 marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.6
               }}>
-                Festival Year
+                Select Festival Year
               </label>
 
               <div style={{ position: 'relative' }}>
@@ -120,11 +121,11 @@ export default function PinModal({ onSuccess }) {
                     cursor: 'pointer'
                   }}
                 >
-                  <option value="2026-27" style={{ background: '#0F172A' }}>Year 2026–27 (Current Active)</option>
-                  <option value="2025-26" style={{ background: '#0F172A' }}>Year 2025–26 (Previous Audit 🔒)</option>
-                  <option value="2024-25" style={{ background: '#0F172A' }}>Year 2024–25 (Previous Audit 🔒)</option>
-                  <option value="2027-28" style={{ background: '#0F172A' }}>Year 2027–28</option>
-                  <option value="2028-29" style={{ background: '#0F172A' }}>Year 2028–29</option>
+                  {availableYears.map(y => (
+                    <option key={y} value={y} style={{ background: '#0F172A' }}>
+                      Year {y}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

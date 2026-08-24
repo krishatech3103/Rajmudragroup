@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Download, X } from 'lucide-react';
+import { Download, X, Smartphone } from 'lucide-react';
 
 export default function PWAInstallBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [showBanner, setShowBanner] = useState(true); // Prominently show on 1st visit
+  const [showBanner, setShowBanner] = useState(true);
+  const [showGuideModal, setShowGuideModal] = useState(false);
 
   useEffect(() => {
-    // Check if user previously dismissed banner
+    // Check if user previously dismissed
     const dismissed = localStorage.getItem('rajmudra_pwa_dismissed');
-    if (dismissed) {
+    if (dismissed === 'true') {
       setShowBanner(false);
     }
 
@@ -31,8 +32,8 @@ export default function PWAInstallBanner() {
       }
       setDeferredPrompt(null);
     } else {
-      // Fallback instructions for iOS Safari or browsers without native prompt
-      alert('📲 Rajmudra Group App Install Instructions:\n\n1. Tap the Share button (📤) in your browser\n2. Scroll down & select "Add to Home Screen" (➕)');
+      // Show guide modal for browsers like iOS Safari or mobile Chrome without automatic prompt
+      setShowGuideModal(true);
     }
   };
 
@@ -44,70 +45,164 @@ export default function PWAInstallBanner() {
   if (!showBanner) return null;
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 65,
-      left: '50%',
-      transform: 'translateX(-50%)',
-      width: 'calc(100% - 20px)',
-      maxWidth: 500,
-      background: 'linear-gradient(135deg, #1E293B 0%, #0F172A 100%)',
-      border: '1.5px solid #FFD700',
-      borderRadius: 18,
-      padding: '10px 14px',
-      color: '#ffffff',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 10,
-      zIndex: 9980,
-      boxShadow: '0 14px 40px rgba(0, 0, 0, 0.5)'
-    }} className="animate-fade-in">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <img
-          src="./ganesh_icon.png"
-          alt="Ganesh Murti App Icon"
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 12,
-            objectFit: 'cover',
-            border: '1px solid #FFD700',
-            boxShadow: '0 4px 12px rgba(255, 87, 34, 0.4)',
-            flexShrink: 0
-          }}
-        />
-        <div>
-          <h4 style={{ fontSize: 13, fontWeight: 900, margin: 0, color: '#ffffff' }}>
-            Rajmudra Group App
-          </h4>
-          <span style={{ fontSize: 11, color: '#FFD700', fontWeight: 700 }}>
-            📲 1-Tap Home Screen Install
-          </span>
+    <>
+      {/* Centered PWA Banner Card */}
+      <div style={{
+        position: 'fixed',
+        top: 70,
+        left: 0,
+        right: 0,
+        margin: '0 auto',
+        width: 'calc(100% - 24px)',
+        maxWidth: 480,
+        background: '#1E293B',
+        border: '2px solid #FFD700',
+        borderRadius: 20,
+        padding: '14px 16px',
+        color: '#ffffff',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+        zIndex: 99990,
+        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7)',
+        boxSizing: 'border-box'
+      }} className="animate-fade-in">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <img
+              src="./ganesh_icon.png"
+              alt="Rajmudra Group Icon"
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 14,
+                objectFit: 'cover',
+                border: '1.5px solid #FFD700',
+                boxShadow: '0 4px 14px rgba(255, 87, 34, 0.4)',
+                flexShrink: 0
+              }}
+            />
+            <div>
+              <h4 style={{ fontSize: 15, fontWeight: 900, margin: 0, color: '#ffffff' }}>
+                Rajmudra Group App
+              </h4>
+              <span style={{ fontSize: 12, color: '#FFD700', fontWeight: 800 }}>
+                📲 Install App on Phone Home Screen
+              </span>
+            </div>
+          </div>
+
+          {/* Prominent High-Visibility X Close Button */}
+          <button
+            onClick={handleDismiss}
+            style={{
+              background: 'rgba(239, 68, 68, 0.2)',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
+              color: '#F87171',
+              cursor: 'pointer',
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              display: 'flex',
+              alignItems: 'center',
+              justify: 'center',
+              flexShrink: 0,
+              transition: 'all 0.2s ease'
+            }}
+            title="Close Banner (बंद करा)"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* 100% Full-Width Clickable Install Action Button */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={handleInstallClick}
+            style={{
+              flex: 1,
+              background: 'linear-gradient(135deg, #FF5722 0%, #F4511E 100%)',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: 14,
+              padding: '12px 16px',
+              fontSize: 14,
+              fontWeight: 900,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justify: 'center',
+              gap: 8,
+              boxShadow: '0 6px 20px rgba(255, 87, 34, 0.45)'
+            }}
+          >
+            <Download size={18} /> Install Rajmudra App (अॅप इंस्टॉल करा)
+          </button>
+
+          <button
+            onClick={handleDismiss}
+            style={{
+              background: 'rgba(255,255,255,0.08)',
+              color: '#CBD5E1',
+              border: '1px solid rgba(255,255,255,0.15)',
+              borderRadius: 14,
+              padding: '12px 14px',
+              fontSize: 13,
+              fontWeight: 800,
+              cursor: 'pointer'
+            }}
+          >
+            Close
+          </button>
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <button
-          onClick={handleInstallClick}
-          style={{
-            background: 'linear-gradient(135deg, #FF5722 0%, #F4511E 100%)',
-            color: '#ffffff', border: 'none', borderRadius: 12,
-            padding: '8px 12px', fontSize: 12, fontWeight: 800,
-            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
-            boxShadow: '0 4px 14px rgba(255, 87, 34, 0.4)',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          <Download size={14} /> Install App
-        </button>
-        <button
-          onClick={handleDismiss}
-          style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', padding: 2 }}
-        >
-          <X size={18} />
-        </button>
-      </div>
-    </div>
+      {/* Guide Modal for iOS / Web Installation */}
+      {showGuideModal && (
+        <div className="modal-overlay" onClick={() => setShowGuideModal(false)}>
+          <div className="modal-sheet animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
+            <div style={{ textAlign: 'center', marginBottom: 16 }}>
+              <div style={{
+                width: 54, height: 54, borderRadius: 18, margin: '0 auto 12px auto',
+                background: 'linear-gradient(135deg, #FF5722 0%, #FF9100 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 8px 20px rgba(255, 87, 34, 0.4)'
+              }}>
+                <Smartphone size={28} color="#ffffff" />
+              </div>
+              <h3 style={{ fontSize: 18, fontWeight: 900, color: '#0F172A', margin: 0 }}>
+                Rajmudra Group App Installation
+              </h3>
+              <p style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>
+                Follow these simple steps to install the app on your phone:
+              </p>
+            </div>
+
+            <div style={{ background: '#F8FAFC', borderRadius: 16, padding: 16, marginBottom: 20, border: '1px solid #E2E8F0' }}>
+              <div style={{ display: 'flex', gap: 12, marginBottom: 12, alignItems: 'flex-start' }}>
+                <span style={{ background: '#FF5722', color: '#ffffff', width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, flexShrink: 0 }}>1</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>
+                  Tap your browser menu icon (<strong>⋮</strong> or <strong>Share 📤</strong>).
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <span style={{ background: '#FF5722', color: '#ffffff', width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, flexShrink: 0 }}>2</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>
+                  Select <strong>"Add to Home Screen" (होम स्क्रीनवर जोडा)</strong> or <strong>"Install App"</strong>.
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowGuideModal(false)}
+              className="btn btn-primary"
+              style={{ width: '100%', padding: '14px' }}
+            >
+              Got It (समजले)
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

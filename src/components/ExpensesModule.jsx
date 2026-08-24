@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Edit, Trash2, X, ArrowUpCircle, Languages, Lock } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, X, ArrowUpCircle, Languages, Lock, ChevronDown, ChevronUp } from 'lucide-react';
 import { db } from '../services/db';
 import { transliterateText } from '../utils/marathiTransliterate';
 
@@ -23,8 +23,9 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate }) {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
 
-  // Form
+  // Form State
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Mandap & Decoration');
   const [amount, setAmount] = useState('');
@@ -36,7 +37,8 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate }) {
 
   const filtered = kharchList.filter(k => {
     const matchesSearch = k.title.toLowerCase().includes(search.toLowerCase()) ||
-                          k.category.toLowerCase().includes(search.toLowerCase());
+                          k.category.toLowerCase().includes(search.toLowerCase()) ||
+                          (k.note || '').toLowerCase().includes(search.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || k.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -99,43 +101,47 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate }) {
     }
   };
 
+  const toggleExpand = (id) => {
+    setExpandedId(prev => (prev === id ? null : id));
+  };
+
   return (
-    <div style={{ padding: 20, fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif' }} className="animate-fade-in">
+    <div style={{ padding: 12, fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif' }} className="animate-fade-in">
       {/* Banner */}
       <div style={{
         background: 'linear-gradient(135deg, #DC2626 0%, #EF4444 50%, #F87171 100%)',
         color: '#ffffff',
-        padding: '20px 24px',
-        borderRadius: 26,
+        padding: '16px 18px',
+        borderRadius: 20,
         display: 'flex',
         alignItems: 'center',
         justify: 'space-between',
         flexWrap: 'wrap',
-        gap: 16,
-        marginBottom: 18,
+        gap: 12,
+        marginBottom: 14,
         boxShadow: '0 12px 30px rgba(239, 68, 68, 0.35)'
       }}>
-        <div style={{ flex: 1, minWidth: 180 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ArrowUpCircle size={22} color="#FCA5A5" /> Mandal Expenses
+        <div style={{ flex: 1, minWidth: 160 }}>
+          <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ArrowUpCircle size={20} color="#FCA5A5" /> Mandal Expenses
           </h2>
-          <span style={{ fontSize: 12, opacity: 0.85, fontWeight: 600, display: 'block', marginTop: 4 }}>
+          <span style={{ fontSize: 12, opacity: 0.85, fontWeight: 600, display: 'block', marginTop: 2 }}>
             Festival Year {activeYear}
           </span>
         </div>
 
         <div style={{ textAlign: 'right', minWidth: 'fit-content' }}>
-          <p style={{ fontSize: 24, fontWeight: 900, margin: 0, letterSpacing: -0.5 }}>
+          <p style={{ fontSize: 22, fontWeight: 900, margin: 0, letterSpacing: -0.5 }}>
             Rs. {totalKharch.toLocaleString('en-IN')}
           </p>
-          <span style={{ fontSize: 11, background: 'rgba(255, 255, 255, 0.25)', padding: '3px 10px', borderRadius: 12, fontWeight: 800, marginTop: 4, display: 'inline-block' }}>
+          <span style={{ fontSize: 11, background: 'rgba(255, 255, 255, 0.25)', padding: '3px 10px', borderRadius: 12, fontWeight: 800, marginTop: 2, display: 'inline-block' }}>
             {kharchList.length} Entries
           </span>
         </div>
       </div>
 
       {/* Category Filter Horizontal Pills Bar */}
-      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 12 }}>
         {EXPENSE_CATEGORIES.map(cat => (
           <button
             key={cat}
@@ -152,13 +158,13 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate }) {
       </div>
 
       {/* Search & Add */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
         <div style={{ position: 'relative', flex: 1 }}>
-          <Search size={18} color="#64748B" style={{ position: 'absolute', left: 16, top: 14 }} />
+          <Search size={18} color="#64748B" style={{ position: 'absolute', left: 14, top: 13 }} />
           <input
             type="text"
             className="input-field"
-            style={{ paddingLeft: 46, borderRadius: 16 }}
+            style={{ paddingLeft: 42, borderRadius: 14 }}
             placeholder="Search expense title..."
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -169,70 +175,104 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate }) {
           <button
             className="btn btn-danger"
             onClick={() => openForm()}
-            style={{ width: 'auto', padding: '0 22px', borderRadius: 16 }}
+            style={{ width: 'auto', padding: '0 18px', borderRadius: 14 }}
           >
-            <Plus size={20} /> Add
+            <Plus size={18} /> Add
           </button>
         )}
       </div>
 
       {/* List */}
       {filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 0', color: '#94A3B8' }}>
-          <ArrowUpCircle size={56} color="#CBD5E1" style={{ margin: '0 auto 12px auto' }} />
-          <p style={{ fontSize: 15, fontWeight: 700 }}>No expense records found.</p>
+        <div style={{ textAlign: 'center', padding: '50px 0', color: '#94A3B8' }}>
+          <ArrowUpCircle size={48} color="#CBD5E1" style={{ margin: '0 auto 10px auto' }} />
+          <p style={{ fontSize: 14, fontWeight: 700 }}>No expense records found.</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {filtered.map(k => (
-            <div key={k.id} className="luxe-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <div style={{
-                  width: 48, height: 48, borderRadius: 16, background: '#FEF2F2',
-                  color: '#DC2626', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  border: '1px solid #FCA5A5', flexShrink: 0
-                }}>
-                  <ArrowUpCircle size={24} />
-                </div>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <h4 style={{ fontSize: 16, fontWeight: 900, margin: 0, color: '#0F172A' }}>{k.title}</h4>
-                    {k.is_locked && (
-                      <span style={{ background: '#FFF7ED', border: '1px solid #FFEDD5', color: '#D84315', padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <Lock size={12} /> Audit Record
-                      </span>
-                    )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {filtered.map(k => {
+            const isExpanded = expandedId === k.id;
+            return (
+              <div
+                key={k.id}
+                className="luxe-card"
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: 16,
+                  cursor: 'pointer',
+                  border: isExpanded ? '1.5px solid #EF4444' : '1px solid #E2E8F0',
+                  boxShadow: isExpanded ? '0 8px 24px rgba(239, 68, 68, 0.15)' : 'none',
+                  transition: 'all 0.2s ease'
+                }}
+                onClick={() => toggleExpand(k.id)}
+              >
+                {/* Clean Summary Row without Avatar */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                  <div style={{ flex: 1, minWidth: 0, paddingRight: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <h4 style={{ fontSize: 16, fontWeight: 900, margin: 0, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {k.title}
+                      </h4>
+                      {k.is_locked && (
+                        <span style={{ background: '#FFF7ED', border: '1px solid #FFEDD5', color: '#D84315', padding: '2px 8px', borderRadius: 8, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Lock size={12} /> Audit Record
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, margin: '2px 0 0 0' }}>
+                      {k.category} • {new Date(k.date).toLocaleDateString('en-IN')} {k.note ? `• ${k.note}` : ''}
+                    </p>
                   </div>
-                  <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, margin: '4px 0 0 0' }}>
-                    {k.category} • {new Date(k.date).toLocaleDateString('en-IN')} {k.note ? `• ${k.note}` : ''}
-                  </p>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                    <span style={{ fontSize: 16, fontWeight: 900, color: '#DC2626' }}>
+                      Rs. {Number(k.amount).toLocaleString('en-IN')}
+                    </span>
+                    {isExpanded ? <ChevronUp size={18} color="#EF4444" /> : <ChevronDown size={18} color="#94A3B8" />}
+                  </div>
                 </div>
-              </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                <span style={{ fontSize: 17, fontWeight: 900, color: '#DC2626', marginRight: 4 }}>
-                  Rs. {Number(k.amount).toLocaleString('en-IN')}
-                </span>
-
-                {isAdmin && !k.is_locked && (
-                  <>
+                {/* Expanded Action Tray */}
+                {isExpanded && isAdmin && !k.is_locked && (
+                  <div
+                    onClick={e => e.stopPropagation()}
+                    style={{
+                      marginTop: 12,
+                      paddingTop: 12,
+                      borderTop: '1px solid #F1F5F9',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justify: 'flex-end',
+                      gap: 8
+                    }}
+                  >
                     <button
                       onClick={() => openForm(k)}
-                      style={{ background: '#FEF3C7', border: '1px solid #FDE68A', padding: 9, borderRadius: 12, color: '#B45309', cursor: 'pointer' }}
+                      style={{
+                        background: '#FEF3C7', border: '1px solid #FDE68A',
+                        padding: '8px 14px', borderRadius: 12, color: '#B45309',
+                        fontSize: 12, fontWeight: 800, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 4
+                      }}
                     >
-                      <Edit size={17} />
+                      <Edit size={15} /> Edit
                     </button>
                     <button
                       onClick={() => handleDelete(k.id, k.title, k.is_locked)}
-                      style={{ background: '#FEE2E2', border: '1px solid #FCA5A5', padding: 9, borderRadius: 12, color: '#B91C1C', cursor: 'pointer' }}
+                      style={{
+                        background: '#FEE2E2', border: '1px solid #FCA5A5',
+                        padding: '8px 14px', borderRadius: 12, color: '#B91C1C',
+                        fontSize: 12, fontWeight: 800, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 4
+                      }}
                     >
-                      <Trash2 size={17} />
+                      <Trash2 size={15} /> Delete
                     </button>
-                  </>
+                  </div>
                 )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
