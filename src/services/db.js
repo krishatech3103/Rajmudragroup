@@ -480,15 +480,30 @@ class DBService {
     };
   }
 
-  importJSON(data) {
-    if (!data) return;
-    if (data.settings) localStorage.setItem(KEYS.SETTINGS, JSON.stringify(data.settings));
-    if (data.members) localStorage.setItem(KEYS.MEMBERS, JSON.stringify(data.members));
-    if (data.vargani) localStorage.setItem(KEYS.VARGANI, JSON.stringify(data.vargani));
-    if (data.jama) localStorage.setItem(KEYS.JAMA, JSON.stringify(data.jama));
-    if (data.kharch) localStorage.setItem(KEYS.KHARCH, JSON.stringify(data.kharch));
-    if (data.aarti) localStorage.setItem(KEYS.AARTI, JSON.stringify(data.aarti));
-    if (data.bank_fd) localStorage.setItem(KEYS.BANK_FD, JSON.stringify(data.bank_fd));
+  importJSON(rawData) {
+    if (!rawData || typeof rawData !== 'object') {
+      throw new Error('Invalid backup file: Format must be a JSON object.');
+    }
+    
+    // Import security utility dynamically if needed or validate
+    const sanitized = {
+      members: Array.isArray(rawData.members) ? rawData.members : [],
+      vargani: Array.isArray(rawData.vargani) ? rawData.vargani : [],
+      jama: Array.isArray(rawData.jama) ? rawData.jama : [],
+      kharch: Array.isArray(rawData.kharch) ? rawData.kharch : [],
+      aarti: Array.isArray(rawData.aarti) ? rawData.aarti : [],
+      bank_fd: Array.isArray(rawData.bank_fd) ? rawData.bank_fd : []
+    };
+
+    if (rawData.settings && typeof rawData.settings === 'object') {
+      localStorage.setItem(KEYS.SETTINGS, JSON.stringify({ ...defaultSettings, ...rawData.settings }));
+    }
+    localStorage.setItem(KEYS.MEMBERS, JSON.stringify(sanitized.members));
+    localStorage.setItem(KEYS.VARGANI, JSON.stringify(sanitized.vargani));
+    localStorage.setItem(KEYS.JAMA, JSON.stringify(sanitized.jama));
+    localStorage.setItem(KEYS.KHARCH, JSON.stringify(sanitized.kharch));
+    localStorage.setItem(KEYS.AARTI, JSON.stringify(sanitized.aarti));
+    localStorage.setItem(KEYS.BANK_FD, JSON.stringify(sanitized.bank_fd));
   }
 }
 

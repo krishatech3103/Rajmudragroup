@@ -65,6 +65,7 @@ export default function App() {
   }, [showSettings, activeTab]);
 
   const handleTabChange = (newTab) => {
+    setShowSettings(false);
     if (newTab !== activeTab) {
       sessionStorage.setItem('rajmudra_active_tab', newTab);
       window.history.pushState({ tab: newTab }, '');

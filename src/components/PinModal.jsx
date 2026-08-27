@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db } from '../services/db';
-import { Lock, User, Eye, EyeOff, ArrowRight, Calendar } from 'lucide-react';
+import { hashPin } from '../utils/security';
+import { Lock, User, Eye, EyeOff, ArrowRight, Calendar, AlertTriangle } from 'lucide-react';
 
 export default function PinModal({ onSuccess }) {
   const availableYears = db.getAvailableYears();
@@ -10,8 +11,24 @@ export default function PinModal({ onSuccess }) {
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
 
-  const handleLogin = (e) => {
+  // Brute-force rate limiting state
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutTime, setLockoutTime] = useState(0);
+
+  useEffect(() => {
+    let timer;
+    if (lockoutTime > 0) {
+      timer = setInterval(() => {
+        setLockoutTime(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [lockoutTime]);
+
+  const handleLogin = async (e) => {
     e.preventDefault();
+    if (lockoutTime > 0) return;
+
     const cleanUser = username.trim().toLowerCase();
     const cleanPass = password.trim();
 
@@ -21,29 +38,42 @@ export default function PinModal({ onSuccess }) {
     }
 
     const settings = db.getSettings();
+    const inputHash = await hashPin(cleanPass);
 
     // Check Admin
     if (cleanUser === 'admin') {
-      if (cleanPass === settings.admin_pin || cleanPass === '1234') {
+      const storedAdminPin = settings.admin_pin || '1234';
+      const storedHash = await hashPin(storedAdminPin);
+
+      if (cleanPass === storedAdminPin || inputHash === storedHash || cleanPass === '1234') {
         db.setSetting('active_year', selectedYear);
         onSuccess(true); // Admin Mode
-      } else {
-        setError('Invalid Password for Admin!');
-        setPassword('');
+        return;
       }
     } 
     // Check Viewer / User
     else if (cleanUser === 'user' || cleanUser === 'viewer') {
-      if (cleanPass === settings.viewer_pin || cleanPass === '0000') {
+      const storedViewerPin = settings.viewer_pin || '0000';
+      const storedHash = await hashPin(storedViewerPin);
+
+      if (cleanPass === storedViewerPin || inputHash === storedHash || cleanPass === '0000') {
         db.setSetting('active_year', selectedYear);
         onSuccess(false); // Viewer Mode
-      } else {
-        setError('Invalid Password for User!');
-        setPassword('');
+        return;
       }
     } 
-    else {
-      setError('Invalid Username! Use "admin" or "user"');
+
+    // Handle Failed Attempt
+    const newAttempts = failedAttempts + 1;
+    setFailedAttempts(newAttempts);
+    setPassword('');
+
+    if (newAttempts >= 5) {
+      setLockoutTime(30);
+      setFailedAttempts(0);
+      setError('Too many failed attempts! Security lockout active for 30 seconds.');
+    } else {
+      setError(`Invalid credentials! (${5 - newAttempts} attempts remaining)`);
     }
   };
 
@@ -218,15 +248,18 @@ export default function PinModal({ onSuccess }) {
             <button
               type="submit"
               className="btn btn-primary"
+              disabled={lockoutTime > 0}
               style={{
                 width: '100%',
                 borderRadius: 16,
                 padding: '15px 20px',
                 fontSize: 16,
-                fontWeight: 900
+                fontWeight: 900,
+                opacity: lockoutTime > 0 ? 0.5 : 1,
+                cursor: lockoutTime > 0 ? 'not-allowed' : 'pointer'
               }}
             >
-              Log In <ArrowRight size={20} />
+              {lockoutTime > 0 ? `Locked Out (${lockoutTime}s)` : 'Log In'} <ArrowRight size={20} />
             </button>
           </form>
         </div>
