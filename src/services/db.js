@@ -481,29 +481,43 @@ class DBService {
   }
 
   importJSON(rawData) {
-    if (!rawData || typeof rawData !== 'object') {
-      throw new Error('Invalid backup file: Format must be a JSON object.');
-    }
-    
-    // Import security utility dynamically if needed or validate
-    const sanitized = {
-      members: Array.isArray(rawData.members) ? rawData.members : [],
-      vargani: Array.isArray(rawData.vargani) ? rawData.vargani : [],
-      jama: Array.isArray(rawData.jama) ? rawData.jama : [],
-      kharch: Array.isArray(rawData.kharch) ? rawData.kharch : [],
-      aarti: Array.isArray(rawData.aarti) ? rawData.aarti : [],
-      bank_fd: Array.isArray(rawData.bank_fd) ? rawData.bank_fd : []
+    if (!rawData || typeof rawData !== 'object') return;
+
+    const mergeById = (existingArr, incomingArr) => {
+      const map = new Map();
+      (existingArr || []).forEach(item => { if (item && item.id) map.set(String(item.id), item); });
+      (incomingArr || []).forEach(item => { if (item && item.id) map.set(String(item.id), { ...map.get(String(item.id)), ...item }); });
+      return Array.from(map.values());
     };
 
     if (rawData.settings && typeof rawData.settings === 'object') {
       localStorage.setItem(KEYS.SETTINGS, JSON.stringify({ ...defaultSettings, ...rawData.settings }));
     }
-    localStorage.setItem(KEYS.MEMBERS, JSON.stringify(sanitized.members));
-    localStorage.setItem(KEYS.VARGANI, JSON.stringify(sanitized.vargani));
-    localStorage.setItem(KEYS.JAMA, JSON.stringify(sanitized.jama));
-    localStorage.setItem(KEYS.KHARCH, JSON.stringify(sanitized.kharch));
-    localStorage.setItem(KEYS.AARTI, JSON.stringify(sanitized.aarti));
-    localStorage.setItem(KEYS.BANK_FD, JSON.stringify(sanitized.bank_fd));
+
+    if (Array.isArray(rawData.members)) {
+      const merged = mergeById(this.getMembersRaw(), rawData.members);
+      localStorage.setItem(KEYS.MEMBERS, JSON.stringify(merged));
+    }
+    if (Array.isArray(rawData.vargani)) {
+      const merged = mergeById(this.getVargani(), rawData.vargani);
+      localStorage.setItem(KEYS.VARGANI, JSON.stringify(merged));
+    }
+    if (Array.isArray(rawData.jama)) {
+      const merged = mergeById(this.getJama(), rawData.jama);
+      localStorage.setItem(KEYS.JAMA, JSON.stringify(merged));
+    }
+    if (Array.isArray(rawData.kharch)) {
+      const merged = mergeById(this.getKharch(), rawData.kharch);
+      localStorage.setItem(KEYS.KHARCH, JSON.stringify(merged));
+    }
+    if (Array.isArray(rawData.aarti)) {
+      const merged = mergeById(this.getAarti(), rawData.aarti);
+      localStorage.setItem(KEYS.AARTI, JSON.stringify(merged));
+    }
+    if (Array.isArray(rawData.bank_fd)) {
+      const merged = mergeById(this.getBankFD(), rawData.bank_fd);
+      localStorage.setItem(KEYS.BANK_FD, JSON.stringify(merged));
+    }
   }
 }
 

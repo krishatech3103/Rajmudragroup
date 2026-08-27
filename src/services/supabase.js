@@ -1,7 +1,7 @@
 /**
  * LIVE Supabase Database Service
  * ================================
- * Non-blocking, instant local UI response + background Supabase cloud sync + Realtime multi-phone listener.
+ * Non-blocking local execution + bidirectional cloud sync + Realtime multi-phone listener.
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -24,10 +24,12 @@ export function getSupabase() {
   if (!url || !key) return null;
 
   try {
-    _client = createClient(url, key);
+    _client = createClient(url, key, {
+      auth: { persistSession: false }
+    });
     return _client;
   } catch (e) {
-    console.error('Supabase Init Error:', e);
+    console.error('[Supabase] Init Error:', e);
     return null;
   }
 }
@@ -47,7 +49,7 @@ async function liveRead(table, fallbackFn) {
     if (error) throw error;
     return data || [];
   } catch (e) {
-    console.warn(`[Supabase] Read failed for ${table}, using local cache:`, e.message);
+    console.warn(`[Supabase] Read failed for ${table}:`, e.message);
     return fallbackFn();
   }
 }
@@ -57,11 +59,14 @@ function liveUpsert(table, record) {
   const client = getSupabase();
   if (!client || !navigator.onLine) return;
 
-  // Non-blocking async execution
   client.from(table).upsert(record).then(({ error }) => {
-    if (error) console.warn(`[Supabase] Upsert warning for ${table}:`, error.message);
+    if (error) {
+      console.error(`[Supabase] Upsert ERROR for table '${table}':`, error.message, error.details);
+    } else {
+      console.log(`[Supabase] Successfully synced 1 record to '${table}'`);
+    }
   }).catch(e => {
-    console.warn(`[Supabase] Upsert exception for ${table}:`, e.message);
+    console.error(`[Supabase] Upsert exception for table '${table}':`, e.message);
   });
 }
 
@@ -71,17 +76,18 @@ function liveDelete(table, id) {
   if (!client || !navigator.onLine) return;
 
   client.from(table).delete().eq('id', id).then(({ error }) => {
-    if (error) console.warn(`[Supabase] Delete warning for ${table}:`, error.message);
+    if (error) console.error(`[Supabase] Delete ERROR for table '${table}':`, error.message);
   }).catch(e => {
-    console.warn(`[Supabase] Delete exception for ${table}:`, e.message);
+    console.error(`[Supabase] Delete exception for table '${table}':`, e.message);
   });
 }
 
 // ── HIGH-LEVEL INSTANT CRUD METHODS ─────────────────────────────────────────
+
 // VARGANI (Donations)
 export async function liveGetVargani(year = null) {
   const data = await liveRead('vargani', () => db.getVargani(year));
-  if (data && navigator.onLine) {
+  if (data && data.length && navigator.onLine) {
     localStorage.setItem('rajmudra_vargani', JSON.stringify(data));
   }
   if (year) return data.filter(v => v.year === year);
@@ -89,14 +95,14 @@ export async function liveGetVargani(year = null) {
 }
 
 export function liveAddVargani(record) {
-  const newItem = db.addVargani(record); // 1. Local instant update (0ms)
-  liveUpsert('vargani', newItem);        // 2. Background push
+  const newItem = db.addVargani(record);
+  liveUpsert('vargani', newItem);
   return newItem;
 }
 
 export function liveUpdateVargani(id, data) {
-  const updated = db.updateVargani(id, data); // 1. Local instant update (0ms)
-  if (updated) liveUpsert('vargani', updated); // 2. Background push
+  const updated = db.updateVargani(id, data);
+  if (updated) liveUpsert('vargani', updated);
   return updated;
 }
 
@@ -108,7 +114,9 @@ export function liveDeleteVargani(id) {
 // JAMA (Income)
 export async function liveGetJama(year = null) {
   const data = await liveRead('jama', () => db.getJama(year));
-  if (data && navigator.onLine) localStorage.setItem('rajmudra_jama', JSON.stringify(data));
+  if (data && data.length && navigator.onLine) {
+    localStorage.setItem('rajmudra_jama', JSON.stringify(data));
+  }
   if (year) return data.filter(j => j.year === year);
   return data;
 }
@@ -133,7 +141,9 @@ export function liveDeleteJama(id) {
 // KHARCH (Expenses)
 export async function liveGetKharch(year = null) {
   const data = await liveRead('kharch', () => db.getKharch(year));
-  if (data && navigator.onLine) localStorage.setItem('rajmudra_kharch', JSON.stringify(data));
+  if (data && data.length && navigator.onLine) {
+    localStorage.setItem('rajmudra_kharch', JSON.stringify(data));
+  }
   if (year) return data.filter(k => k.year === year);
   return data;
 }
@@ -158,7 +168,9 @@ export function liveDeleteKharch(id) {
 // AARTI
 export async function liveGetAarti(year = null) {
   const data = await liveRead('aarti', () => db.getAarti(year));
-  if (data && navigator.onLine) localStorage.setItem('rajmudra_aarti', JSON.stringify(data));
+  if (data && data.length && navigator.onLine) {
+    localStorage.setItem('rajmudra_aarti', JSON.stringify(data));
+  }
   if (year) return data.filter(a => a.year === year);
   return data;
 }
@@ -183,7 +195,9 @@ export function liveDeleteAarti(id) {
 // BANK FD
 export async function liveGetBankFD(year = null) {
   const data = await liveRead('bank_fd', () => db.getBankFD(year));
-  if (data && navigator.onLine) localStorage.setItem('rajmudra_bank_fd', JSON.stringify(data));
+  if (data && data.length && navigator.onLine) {
+    localStorage.setItem('rajmudra_bank_fd', JSON.stringify(data));
+  }
   if (year) return data.filter(b => b.year === year);
   return data;
 }
@@ -208,11 +222,13 @@ export function liveDeleteBankFD(id) {
 // MEMBERS
 export async function liveGetMembers(year = null) {
   const data = await liveRead('members', () => db.getMembersRaw());
-  if (data && navigator.onLine) localStorage.setItem('rajmudra_members', JSON.stringify(data));
+  if (data && data.length && navigator.onLine) {
+    localStorage.setItem('rajmudra_members', JSON.stringify(data));
+  }
   return data;
 }
 
-// ── BULK BACKUP OPERATIONS ─────────────────────────────────────────────
+// ── BULK BIDIRECTIONAL SYNC ─────────────────────────────────────────────
 export async function pushToCloud() {
   const client = getSupabase();
   if (!client) return false;
@@ -229,7 +245,8 @@ export async function pushToCloud() {
 
   for (const [table, rows] of tables) {
     if (rows && rows.length > 0) {
-      await client.from(table).upsert(rows);
+      const { error } = await client.from(table).upsert(rows);
+      if (error) console.warn(`[Supabase] Push warning for ${table}:`, error.message);
     }
   }
   return true;
@@ -239,21 +256,34 @@ export async function pullFromCloud() {
   const client = getSupabase();
   if (!client) return false;
 
-  const fetches = await Promise.all([
-    client.from('members').select(),
-    client.from('vargani').select(),
-    client.from('jama').select(),
-    client.from('kharch').select(),
-    client.from('aarti').select(),
-    client.from('bank_fd').select()
-  ]);
+  try {
+    const fetches = await Promise.all([
+      client.from('members').select(),
+      client.from('vargani').select(),
+      client.from('jama').select(),
+      client.from('kharch').select(),
+      client.from('aarti').select(),
+      client.from('bank_fd').select()
+    ]);
 
-  const [members, vargani, jama, kharch, aarti, bank_fd] = fetches.map(r => r.data || []);
+    const [membersRes, varganiRes, jamaRes, kharchRes, aartiRes, bank_fdRes] = fetches;
 
-  // Only import if data was successfully received
-  if (members.length || vargani.length || jama.length || kharch.length || aarti.length || bank_fd.length) {
-    db.importJSON({ members, vargani, jama, kharch, aarti, bank_fd });
-    return true;
+    let hasAnyData = false;
+    const payload = {};
+
+    if (membersRes.data && membersRes.data.length) { payload.members = membersRes.data; hasAnyData = true; }
+    if (varganiRes.data && varganiRes.data.length) { payload.vargani = varganiRes.data; hasAnyData = true; }
+    if (jamaRes.data && jamaRes.data.length) { payload.jama = jamaRes.data; hasAnyData = true; }
+    if (kharchRes.data && kharchRes.data.length) { payload.kharch = kharchRes.data; hasAnyData = true; }
+    if (aartiRes.data && aartiRes.data.length) { payload.aarti = aartiRes.data; hasAnyData = true; }
+    if (bank_fdRes.data && bank_fdRes.data.length) { payload.bank_fd = bank_fdRes.data; hasAnyData = true; }
+
+    if (hasAnyData) {
+      db.importJSON(payload);
+      return true;
+    }
+  } catch (e) {
+    console.warn('[Supabase] pullFromCloud error:', e.message);
   }
   return false;
 }
@@ -264,9 +294,12 @@ export async function autoPullCloud() {
   if (!client) return false;
 
   try {
+    // 1. First push local unsynced records to cloud
+    await pushToCloud();
+    // 2. Then pull latest records from cloud to local storage
     return await pullFromCloud();
   } catch (e) {
-    console.warn('[Supabase] Auto-pull error:', e.message);
+    console.warn('[Supabase] Auto-sync error:', e.message);
     return false;
   }
 }
@@ -276,29 +309,29 @@ export function setupRealtimeSync(onSyncCallback) {
   const client = getSupabase();
   if (!client) return () => {};
 
-  // 1. Initial silent background sync
+  // 1. Initial push + pull
   autoPullCloud().then(didPull => {
-    if (didPull && onSyncCallback) onSyncCallback();
+    if (onSyncCallback) onSyncCallback();
   });
 
-  // 2. Realtime WebSocket listener for instant multi-phone synchronization
+  // 2. Realtime WebSocket listener
   if (!_realtimeChannel) {
     _realtimeChannel = client
       .channel('public:db_changes')
       .on('postgres_changes', { event: '*', schema: 'public' }, async () => {
-        const didPull = await autoPullCloud();
-        if (didPull && onSyncCallback) onSyncCallback();
+        await pullFromCloud();
+        if (onSyncCallback) onSyncCallback();
       })
       .subscribe();
   }
 
-  // 3. Background periodic sync interval (every 10 seconds)
+  // 3. Periodic sync timer every 5 seconds
   const syncInterval = setInterval(async () => {
     if (navigator.onLine) {
-      const didPull = await autoPullCloud();
+      const didPull = await pullFromCloud();
       if (didPull && onSyncCallback) onSyncCallback();
     }
-  }, 10000);
+  }, 5000);
 
   return () => {
     clearInterval(syncInterval);
@@ -310,6 +343,6 @@ if (typeof window !== 'undefined') {
   window.addEventListener('online', async () => {
     const client = getSupabase();
     if (!client) return;
-    try { await pushToCloud(); } catch (e) {}
+    try { await autoPullCloud(); } catch (e) {}
   });
 }
