@@ -481,9 +481,7 @@ class DBService {
   }
 
   importJSON(data) {
-    if (!data.vargani || !data.members) {
-      throw new Error('अवैध बॅकअप फाइल format!');
-    }
+    if (!data) return;
     if (data.settings) localStorage.setItem(KEYS.SETTINGS, JSON.stringify(data.settings));
     if (data.members) localStorage.setItem(KEYS.MEMBERS, JSON.stringify(data.members));
     if (data.vargani) localStorage.setItem(KEYS.VARGANI, JSON.stringify(data.vargani));

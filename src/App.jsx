@@ -13,6 +13,8 @@ import ReportsModule from './components/ReportsModule';
 import SettingsModal from './components/SettingsModal';
 import PWAInstallBanner from './components/PWAInstallBanner';
 
+import { autoPullCloud } from './services/supabase';
+
 const TAB_ORDER = ['dashboard', 'vargani', 'jama', 'kharch', 'aarti', 'bank', 'reports'];
 
 export default function App() {
@@ -33,6 +35,12 @@ export default function App() {
   const touchStartXRef = useRef(0);
   const touchStartYRef = useRef(0);
 
+  // Run ONCE on first app mount: pull live data from Supabase
+  useEffect(() => {
+    autoPullCloud(); // silent initial pull from Supabase (credentials baked in)
+  }, []); // empty deps = only on mount
+
+  // Re-read settings whenever refreshKey changes (triggered by save/edit actions)
   useEffect(() => {
     const s = db.getSettings();
     setActiveYear(s.active_year || '2026-27');
@@ -117,7 +125,8 @@ export default function App() {
     setIsAdmin(false);
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
+    await autoPullCloud();
     const s = db.getSettings();
     setActiveYear(s.active_year || '2026-27');
     setRefreshKey(prev => prev + 1);

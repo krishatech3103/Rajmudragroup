@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Landmark, Plus, Search, Edit, Trash2, X, Percent, CreditCard, Lock, Languages, RefreshCw, Calendar, AlertTriangle, Receipt } from 'lucide-react';
 import { db } from '../services/db';
 import { transliterateText } from '../utils/marathiTransliterate';
+import { liveAddBankFD, liveUpdateBankFD, liveDeleteBankFD } from '../services/supabase';
 
 const YEARS = ['2026-27', '2025-26', '2024-25', '2027-28', '2023-24'];
 
@@ -116,9 +117,9 @@ export default function BankModule({ isAdmin, activeYear, onUpdate }) {
     };
 
     if (editItem) {
-      db.updateBankFD(editItem.id, payload);
+      liveUpdateBankFD(editItem.id, payload);
     } else {
-      db.addBankFD(payload);
+      liveAddBankFD(payload);
     }
 
     setShowModal(false);
@@ -132,7 +133,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate }) {
       return;
     }
     if (confirm(`Delete bank entry "${title}"?`)) {
-      db.deleteBankFD(id);
+      liveDeleteBankFD(id);
       onUpdate();
     }
   };
@@ -356,14 +357,15 @@ export default function BankModule({ isAdmin, activeYear, onUpdate }) {
                 <select
                   className="input-field"
                   value={type}
-                  onChange={e => setType(e.target.value)}
+                  onChange={e => handleTypeChange(e.target.value)}
+                  disabled={!!editItem}
                 >
-                  <option value="deposit">FD Deposit / New FD (नवीन बँक ठेव पावती)</option>
-                  <option value="renew">FD Renew (ठेव नूतनीकरण)</option>
-                  <option value="interest">FD Interest Received (ठेवीवरील व्याज)</option>
-                  <option value="withdrawal">FD Cash Withdrawal (ठेव रोख काढली)</option>
-                  <option value="fd_expense">FD Withdrawal for Expense (ठेव मोडून खर्च करणे)</option>
-                  <option value="charge">Bank Charges / Service Fee (बँक फी)</option>
+                  <option value="deposit">FD Deposit / New FD</option>
+                  <option value="renew">FD Renew</option>
+                  <option value="interest">FD Interest Received</option>
+                  <option value="withdrawal">FD Cash Withdrawal</option>
+                  <option value="fd_expense">FD Withdrawal for Expense</option>
+                  <option value="charge">Bank Charges / Service Fee</option>
                 </select>
               </div>
 
@@ -387,7 +389,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate }) {
                   className="input-field"
                   value={title}
                   onChange={e => setTitle(e.target.value)}
-                  placeholder="e.g. FD Renewal 2025 or बँक ठेव पावती 2025"
+                  placeholder="e.g. FD Renewal 2025"
                   required
                 />
               </div>
@@ -406,7 +408,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate }) {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div className="input-group">
-                  <label className="input-label">Transaction Date (मागील तारीख निवडा)</label>
+                  <label className="input-label">Transaction Date</label>
                   <input
                     type="date"
                     className="input-field"

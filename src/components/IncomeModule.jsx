@@ -3,6 +3,7 @@ import { Plus, Search, Edit, Trash2, X, ArrowDownCircle, Languages, Lock, Messag
 import { db } from '../services/db';
 import { generateWhatsAppReceipt } from '../utils/whatsapp';
 import { transliterateText } from '../utils/marathiTransliterate';
+import { liveAddVargani, liveUpdateVargani, liveDeleteVargani, liveAddJama, liveUpdateJama, liveDeleteJama } from '../services/supabase';
 
 const INCOME_CATEGORIES = [
   'All',
@@ -116,7 +117,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
       const memberObj = db.upsertMember(memberName, phone);
 
       if (editItem && editItem.isVargani) {
-        db.updateVargani(editItem.raw_id, {
+        liveUpdateVargani(editItem.raw_id, {
           member_id: memberObj.id,
           member_name: memberObj.name,
           phone: phone.trim() || memberObj.phone,
@@ -126,7 +127,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
           note: note.trim()
         });
       } else {
-        db.addVargani({
+        liveAddVargani({
           member_id: memberObj.id,
           member_name: memberObj.name,
           phone: phone.trim() || memberObj.phone,
@@ -144,7 +145,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
       }
 
       if (editItem && !editItem.isVargani) {
-        db.updateJama(editItem.id, {
+        liveUpdateJama(editItem.id, {
           title: title.trim(),
           category,
           amount: numAmt,
@@ -153,7 +154,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
           note: note.trim()
         });
       } else {
-        db.addJama({
+        liveAddJama({
           title: title.trim(),
           category,
           year: activeYear,
@@ -173,9 +174,9 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
     if (!isAdmin) return;
     if (confirm(`Delete income entry for "${item.title}"?`)) {
       if (item.isVargani) {
-        db.deleteVargani(item.raw_id);
+        liveDeleteVargani(item.raw_id);
       } else {
-        db.deleteJama(item.id);
+        liveDeleteJama(item.id);
       }
       onUpdate();
     }
@@ -393,15 +394,15 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
             <form onSubmit={handleSave}>
               {/* Income Type Selector */}
               <div className="input-group">
-                <label className="input-label">Income Type (जमा प्रकार) *</label>
+                <label className="input-label">Income Type *</label>
                 <select
                   className="input-field"
                   value={entryType}
                   onChange={e => setEntryType(e.target.value)}
                   disabled={!!editItem}
                 >
-                  <option value="donation">Member Donation (सदस्य वर्गणी)</option>
-                  <option value="other">Other Income / Revenue (इतर जमा)</option>
+                  <option value="donation">Member Donation</option>
+                  <option value="other">Other Income / Revenue</option>
                 </select>
               </div>
 
@@ -410,7 +411,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
                 <>
                   <div className="input-group">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <label className="input-label" style={{ margin: 0 }}>Member Name (सदस्याचे नाव) *</label>
+                      <label className="input-label" style={{ margin: 0 }}>Member Name *</label>
                       <button
                         type="button"
                         onClick={handleTransliterateName}
@@ -452,7 +453,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
                 <>
                   <div className="input-group">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <label className="input-label" style={{ margin: 0 }}>Income Title (जमा शीर्षक) *</label>
+                      <label className="input-label" style={{ margin: 0 }}>Income Title *</label>
                       <button
                         type="button"
                         onClick={handleTransliterateName}
@@ -505,7 +506,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
 
               {/* Payment Mode Field */}
               <div className="input-group">
-                <label className="input-label">Payment Mode (पैसे भरण्याचा प्रकार) *</label>
+                <label className="input-label">Payment Mode *</label>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button
                     type="button"
@@ -519,7 +520,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
                     }}
                   >
-                    <Banknote size={16} /> Cash (रोख)
+                    <Banknote size={16} /> Cash
                   </button>
 
                   <button

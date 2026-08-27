@@ -3,7 +3,7 @@ import { Plus, Search, MessageSquare, Edit, Trash2, X, HeartHandshake, Languages
 import { db } from '../services/db';
 import { generateWhatsAppReceipt } from '../utils/whatsapp';
 import { transliterateText } from '../utils/marathiTransliterate';
-import { autoSyncCloud } from '../services/supabase';
+import { liveAddVargani, liveUpdateVargani, liveDeleteVargani } from '../services/supabase';
 import MemberHistoryModal from './MemberHistoryModal';
 
 export default function DonationsModule({ isAdmin, activeYear, onUpdate, initialFilter = 'all' }) {
@@ -102,12 +102,11 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
     };
 
     if (editItem) {
-      db.updateVargani(editItem.id, payload);
+      liveUpdateVargani(editItem.id, payload);
     } else {
-      db.addVargani(payload);
+      liveAddVargani(payload);
     }
 
-    autoSyncCloud();
     setShowModal(false);
     onUpdate();
   };
@@ -115,16 +114,14 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
   const toggleStatus = (item) => {
     if (!isAdmin) return;
     const nextStatus = (item.status || 'paid') === 'paid' ? 'pending' : 'paid';
-    db.updateVargani(item.id, { status: nextStatus });
-    autoSyncCloud();
+    liveUpdateVargani(item.id, { status: nextStatus });
     onUpdate();
   };
 
   const handleDelete = (id, name) => {
     if (!isAdmin) return;
     if (confirm(`Are you sure you want to delete donation record for ${name}?`)) {
-      db.deleteVargani(id);
-      autoSyncCloud();
+      liveDeleteVargani(id);
       onUpdate();
     }
   };
@@ -247,42 +244,43 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
                 onClick={() => toggleExpand(v.id)}
               >
                 {/* Main Card Summary Row */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                  <div style={{ flex: 1, minWidth: 0, paddingRight: 10 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 12, fontWeight: 800, color: '#FF5722', background: '#FFF7ED', padding: '1px 6px', borderRadius: 6, border: '1px solid #FFEDD5' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 6 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap' }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: '#FF5722', background: '#FFF7ED', padding: '1px 5px', borderRadius: 6, border: '1px solid #FFEDD5', flexShrink: 0 }}>
                         {itemPrefix}
                       </span>
-                      <h4 style={{ fontSize: 16, fontWeight: 900, margin: 0, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <h4 style={{ fontSize: 15, fontWeight: 900, margin: 0, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {v.member_name}
                       </h4>
 
-                      {/* Paid / Pending Status Badge */}
-                      <span
-                        onClick={(e) => { e.stopPropagation(); toggleStatus(v); }}
-                        style={{
-                          background: isPaid ? '#DCFCE7' : '#FEF3C7',
-                          color: isPaid ? '#15803D' : '#B45309',
-                          border: isPaid ? '1px solid #86EFAC' : '1px solid #FDE68A',
-                          padding: '2px 8px', borderRadius: 8, fontSize: 10, fontWeight: 800,
-                          cursor: isAdmin ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 3
-                        }}
-                      >
-                        {isPaid ? <CheckCircle2 size={11} /> : <Clock size={11} />}
-                        {isPaid ? 'PAID' : 'PENDING'}
-                      </span>
+                      {/* Payment Status & Mode Badges Inline Together */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                        <span
+                          onClick={(e) => { e.stopPropagation(); toggleStatus(v); }}
+                          style={{
+                            background: isPaid ? '#DCFCE7' : '#FEF3C7',
+                            color: isPaid ? '#15803D' : '#B45309',
+                            border: isPaid ? '1px solid #86EFAC' : '1px solid #FDE68A',
+                            padding: '2px 6px', borderRadius: 6, fontSize: 10, fontWeight: 800,
+                            cursor: isAdmin ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 3
+                          }}
+                        >
+                          {isPaid ? <CheckCircle2 size={11} /> : <Clock size={11} />}
+                          {isPaid ? 'PAID' : 'PENDING'}
+                        </span>
 
-                      {/* Payment Mode Badge */}
-                      <span style={{
-                        background: isUPI ? '#EFF6FF' : '#F8FAFC',
-                        color: isUPI ? '#2563EB' : '#475569',
-                        border: isUPI ? '1px solid #BFDBFE' : '1px solid #E2E8F0',
-                        padding: '2px 7px', borderRadius: 8, fontSize: 10, fontWeight: 800,
-                        display: 'flex', alignItems: 'center', gap: 3
-                      }}>
-                        {isUPI ? <CreditCard size={11} /> : <Banknote size={11} />}
-                        {isUPI ? 'UPI' : 'Cash'}
-                      </span>
+                        <span style={{
+                          background: isUPI ? '#EFF6FF' : '#F8FAFC',
+                          color: isUPI ? '#2563EB' : '#475569',
+                          border: isUPI ? '1px solid #BFDBFE' : '1px solid #E2E8F0',
+                          padding: '2px 6px', borderRadius: 6, fontSize: 10, fontWeight: 800,
+                          display: 'flex', alignItems: 'center', gap: 3
+                        }}>
+                          {isUPI ? <CreditCard size={11} /> : <Banknote size={11} />}
+                          {isUPI ? 'UPI' : 'Cash'}
+                        </span>
+                      </div>
                     </div>
 
                     <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, margin: '4px 0 0 0' }}>
@@ -292,78 +290,81 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
                     </p>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                    <span style={{ fontSize: 16, fontWeight: 900, color: isPaid ? '#1D4ED8' : '#D97706' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                    <span style={{ fontSize: 15, fontWeight: 900, color: isPaid ? '#1D4ED8' : '#D97706' }}>
                       Rs. {Number(v.amount).toLocaleString('en-IN')}
                     </span>
                     {isExpanded ? <ChevronUp size={18} color="#FF5722" /> : <ChevronDown size={18} color="#94A3B8" />}
                   </div>
                 </div>
 
-                {/* Expanded Action Tray */}
+                {/* Expanded Action Tray - Single Compact Inline Row with Icons */}
                 {isExpanded && (
                   <div
                     onClick={e => e.stopPropagation()}
                     style={{
-                      marginTop: 12,
-                      paddingTop: 12,
+                      marginTop: 10,
+                      paddingTop: 10,
                       borderTop: '1px solid #F1F5F9',
                       display: 'flex',
                       alignItems: 'center',
-                      justify: 'space-between',
-                      gap: 8,
-                      flexWrap: 'wrap'
+                      justify: 'flex-end',
+                      gap: 8
                     }}
                   >
                     <button
                       onClick={() => setSelectedMemberHistory({ id: v.member_id, name: v.member_name })}
+                      title="Member History"
                       style={{
-                        flex: 1,
                         background: '#EFF6FF', border: '1px solid #BFDBFE',
-                        padding: '8px 12px', borderRadius: 12, color: '#1D4ED8',
+                        padding: '7px 12px', borderRadius: 10, color: '#1D4ED8',
                         fontSize: 12, fontWeight: 800, cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5
+                        display: 'flex', alignItems: 'center', gap: 4
                       }}
                     >
-                      <History size={15} /> History
+                      <History size={15} />
+                      <span>History</span>
                     </button>
 
                     <button
                       onClick={() => generateWhatsAppReceipt(v, activeYear)}
+                      title="Send WhatsApp Receipt"
                       style={{
-                        flex: 1,
                         background: '#DCFCE7', border: '1px solid #86EFAC',
-                        padding: '8px 12px', borderRadius: 12, color: '#15803D',
+                        padding: '7px 12px', borderRadius: 10, color: '#15803D',
                         fontSize: 12, fontWeight: 800, cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5
+                        display: 'flex', alignItems: 'center', gap: 4
                       }}
                     >
-                      <MessageSquare size={15} /> WhatsApp
+                      <MessageSquare size={15} />
+                      <span>WhatsApp</span>
                     </button>
 
                     {isAdmin && (
                       <>
                         <button
                           onClick={() => openForm(v)}
+                          title="Edit Donation"
                           style={{
                             background: '#FEF3C7', border: '1px solid #FDE68A',
-                            padding: '8px 12px', borderRadius: 12, color: '#B45309',
+                            padding: '7px 11px', borderRadius: 10, color: '#B45309',
                             fontSize: 12, fontWeight: 800, cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', gap: 4
+                            display: 'flex', alignItems: 'center', gap: 3
                           }}
                         >
-                          <Edit size={15} /> Edit
+                          <Edit size={15} />
                         </button>
                         <button
                           onClick={() => handleDelete(v.id, v.member_name)}
+                          title="Delete Donation"
                           style={{
                             background: '#FEE2E2', border: '1px solid #FCA5A5',
-                            padding: '8px 12px', borderRadius: 12, color: '#B91C1C',
+                            padding: '7px 11px', borderRadius: 10, color: '#B91C1C',
                             fontSize: 12, fontWeight: 800, cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', gap: 4
+                            display: 'flex', alignItems: 'center', gap: 3
                           }}
                         >
-                          <Trash2 size={15} /> Delete
+                          <Trash2 size={15} />
                         </button>
                       </>
                     )}
@@ -478,7 +479,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
 
               {/* Payment Mode Selector: Cash vs UPI */}
               <div className="input-group">
-                <label className="input-label">Payment Mode (देयक पद्धत) *</label>
+                <label className="input-label">Payment Mode *</label>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button
                     type="button"
@@ -492,7 +493,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
                     }}
                   >
-                    <Banknote size={16} /> Cash (रोख)
+                    <Banknote size={16} /> Cash
                   </button>
 
                   <button
@@ -507,14 +508,14 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
                     }}
                   >
-                    <CreditCard size={16} /> Online / UPI (यू.पी.आय.)
+                    <CreditCard size={16} /> Online / UPI
                   </button>
                 </div>
               </div>
 
               {/* Status Picker: Paid vs Pending */}
               <div className="input-group">
-                <label className="input-label">Payment Status (रक्कम स्थिती) *</label>
+                <label className="input-label">Payment Status *</label>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button
                     type="button"
@@ -528,7 +529,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
                     }}
                   >
-                    <CheckCircle2 size={16} /> Paid (जमा प्राप्त)
+                    <CheckCircle2 size={16} /> Paid
                   </button>
 
                   <button
@@ -543,14 +544,14 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
                     }}
                   >
-                    <Clock size={16} /> Pending (बाकी)
+                    <Clock size={16} /> Pending
                   </button>
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div className="input-group">
-                  <label className="input-label">Receipt No. (पावती क्र.)</label>
+                  <label className="input-label">Receipt No.</label>
                   <input
                     type="text"
                     className="input-field"
@@ -572,13 +573,13 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
               </div>
 
               <div className="input-group">
-                <label className="input-label">Note (नोंद - ऐच्छिक)</label>
+                <label className="input-label">Note (Optional)</label>
                 <input
                   type="text"
                   className="input-field"
                   value={note}
                   onChange={e => setNote(e.target.value)}
-                  placeholder="अतिरिक्त नोंद (WhatsApp पावतीत दिसणार नाही)"
+                  placeholder="Additional details (will not appear in WhatsApp receipt)"
                 />
               </div>
 

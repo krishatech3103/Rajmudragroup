@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Search, Calendar, Clock, Sun, Moon, Edit, Trash2, X, Flame, Languages, Copy, Check } from 'lucide-react';
 import { db } from '../services/db';
 import { transliterateText } from '../utils/marathiTransliterate';
+import { liveAddAarti, liveUpdateAarti, liveDeleteAarti } from '../services/supabase';
 
 export default function AartiModule({ isAdmin, activeYear, onUpdate }) {
   const [search, setSearch] = useState('');
@@ -58,7 +59,7 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate }) {
     }
 
     if (editItem) {
-      db.updateAarti(editItem.id, {
+      liveUpdateAarti(editItem.id, {
         day_title: dayTitle.trim(),
         date,
         morning_time: morningTime,
@@ -68,7 +69,7 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate }) {
         note: note.trim()
       });
     } else {
-      db.addAarti({
+      liveAddAarti({
         year: activeYear,
         day_title: dayTitle.trim(),
         date,
@@ -87,7 +88,7 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate }) {
   const handleDelete = (id, title) => {
     if (!isAdmin) return;
     if (confirm(`Delete Aarti schedule for "${title}"?`)) {
-      db.deleteAarti(id);
+      liveDeleteAarti(id);
       onUpdate();
     }
   };

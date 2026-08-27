@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Search, Edit, Trash2, X, ArrowUpCircle, Languages, Lock, ChevronDown, ChevronUp } from 'lucide-react';
 import { db } from '../services/db';
 import { transliterateText } from '../utils/marathiTransliterate';
+import { liveAddKharch, liveUpdateKharch, liveDeleteKharch } from '../services/supabase';
 
 const EXPENSE_CATEGORIES = [
   'All',
@@ -80,9 +81,9 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate }) {
     }
 
     if (editItem) {
-      db.updateKharch(editItem.id, { title: title.trim(), category, amount: numAmt, date, note: note.trim() });
+      liveUpdateKharch(editItem.id, { title: title.trim(), category, amount: numAmt, date, note: note.trim() });
     } else {
-      db.addKharch({ title: title.trim(), category, year: activeYear, amount: numAmt, date, note: note.trim() });
+      liveAddKharch({ title: title.trim(), category, year: activeYear, amount: numAmt, date, note: note.trim() });
     }
 
     setShowModal(false);
@@ -96,7 +97,7 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate }) {
       return;
     }
     if (confirm(`Delete expense record "${title}"?`)) {
-      db.deleteKharch(id);
+      liveDeleteKharch(id);
       onUpdate();
     }
   };

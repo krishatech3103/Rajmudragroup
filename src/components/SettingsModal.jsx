@@ -107,17 +107,71 @@ export default function SettingsModal({ onClose, onUpdate }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-        <div className="sheet-pill" />
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        background: '#0B1329',
+        zIndex: 9999,
+        overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        display: 'flex',
+        flexDirection: 'column'
+      }}
+      className="animate-fade-in"
+    >
+      {/* Sticky Top Navigation Header */}
+      <div style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 20,
+        background: '#0F172A',
+        color: '#ffffff',
+        padding: '14px 18px',
+        display: 'flex',
+        alignItems: 'center',
+        justify: 'space-between',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+        boxShadow: '0 4px 15px rgba(0, 0, 0, 0.25)'
+      }}>
+        <h3 style={{ fontSize: 18, fontWeight: 900, margin: 0, color: '#ffffff', display: 'flex', alignItems: 'center', gap: 8 }}>
+          ⚙️ Mandal System Settings
+        </h3>
+        <button
+          onClick={onClose}
+          style={{
+            background: 'rgba(255, 255, 255, 0.15)',
+            border: 'none',
+            borderRadius: 10,
+            padding: '6px 10px',
+            cursor: 'pointer',
+            color: '#ffffff',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            fontWeight: 800,
+            fontSize: 13
+          }}
+        >
+          <X size={18} color="#ffffff" />
+          <span>Close</span>
+        </button>
+      </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <h3 style={{ fontSize: 18, fontWeight: 900, color: '#0F172A' }}>Mandal System Settings</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-            <X size={22} color="#64748B" />
-          </button>
-        </div>
-
+      {/* Main Full-Screen Content Body */}
+      <div style={{
+        flex: 1,
+        padding: '16px 16px 40px 16px',
+        maxWidth: 640,
+        margin: '0 auto',
+        width: '100%',
+        boxSizing: 'border-box'
+      }}>
         {/* 1. Year Switcher */}
         <div className="luxe-card" style={{ marginBottom: 14 }}>
           <h4 style={{ fontSize: 14, fontWeight: 800, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, color: '#FF5722' }}>
@@ -227,22 +281,31 @@ export default function SettingsModal({ onClose, onUpdate }) {
 
         {/* 4. Supabase Cloud Sync */}
         <div className="luxe-card">
-          <h4 style={{ fontSize: 14, fontWeight: 800, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, color: '#2563EB' }}>
-            <Cloud size={18} /> 4. Supabase Cloud Sync
+          <h4 style={{ fontSize: 14, fontWeight: 800, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, color: '#2563EB' }}>
+            <Cloud size={18} /> 4. Cloud Sync (Admin Only)
           </h4>
+
+          <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 10, padding: '10px 12px', marginBottom: 14 }}>
+            <p style={{ fontSize: 12, color: '#1D4ED8', fontWeight: 700, margin: '0 0 4px 0' }}>ℹ️ Supabase credentials are built into the app</p>
+            <p style={{ fontSize: 11, color: '#3B82F6', fontWeight: 600, margin: 0 }}>
+              No per-device setup needed. All users connect automatically.
+              Use the fields below <strong>only</strong> if you need to override or migrate to a new Supabase project.
+            </p>
+          </div>
+
           <div className="input-group">
-            <label className="input-label">Supabase Project URL</label>
+            <label className="input-label">Override Supabase URL (optional)</label>
             <input
               type="text"
               className="input-field"
               value={supabaseUrl}
               onChange={e => setSupabaseUrl(e.target.value)}
-              placeholder="https://xyz.supabase.co"
+              placeholder="Leave blank to use built-in credentials"
             />
           </div>
 
           <div className="input-group">
-            <label className="input-label">Supabase Anon Key</label>
+            <label className="input-label">Override Anon Key (optional)</label>
             <div style={{ position: 'relative' }}>
               <input
                 type={showSupabaseKey ? 'text' : 'password'}
@@ -250,7 +313,7 @@ export default function SettingsModal({ onClose, onUpdate }) {
                 style={{ paddingRight: 46 }}
                 value={supabaseKey}
                 onChange={e => setSupabaseKey(e.target.value)}
-                placeholder="eyJhbGci..."
+                placeholder="Leave blank to use built-in credentials"
               />
               <button
                 type="button"
@@ -262,16 +325,16 @@ export default function SettingsModal({ onClose, onUpdate }) {
             </div>
           </div>
 
-          <button className="btn btn-primary" onClick={handleSaveSupabase} style={{ padding: 10, fontSize: 13, borderRadius: 14, marginBottom: 10 }}>
-            Save Credentials
+          <button className="btn btn-secondary" onClick={handleSaveSupabase} style={{ padding: 10, fontSize: 13, borderRadius: 14, marginBottom: 10 }}>
+            💾 Save Override Credentials
           </button>
 
           <div style={{ display: 'flex', gap: 10 }}>
             <button className="btn btn-secondary" onClick={handleCloudPush} style={{ flex: 1, padding: 10, fontSize: 12, borderRadius: 12 }}>
-              Cloud Push ⬆
+              Push Local → Cloud ⬆
             </button>
             <button className="btn btn-secondary" onClick={handleCloudPull} style={{ flex: 1, padding: 10, fontSize: 12, borderRadius: 12 }}>
-              Cloud Pull ⬇
+              Pull Cloud → Local ⬇
             </button>
           </div>
 
