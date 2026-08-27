@@ -28,7 +28,6 @@ export default function App() {
     return sessionStorage.getItem('rajmudra_active_tab') || 'dashboard';
   });
   const [activeYear, setActiveYear] = useState('2026-27');
-  const [showSettings, setShowSettings] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Swipe Gesture Tracking
@@ -49,23 +48,19 @@ export default function App() {
   // Mobile Hardware Back Button Support (popstate navigation)
   useEffect(() => {
     const handlePopState = (e) => {
-      if (showSettings) {
-        setShowSettings(false);
-        return;
-      }
       if (activeTab !== 'dashboard') {
         setActiveTab('dashboard');
         sessionStorage.setItem('rajmudra_active_tab', 'dashboard');
+        window.scrollTo(0, 0);
         return;
       }
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [showSettings, activeTab]);
+  }, [activeTab]);
 
   const handleTabChange = (newTab) => {
-    setShowSettings(false);
     if (newTab !== activeTab) {
       sessionStorage.setItem('rajmudra_active_tab', newTab);
       window.history.pushState({ tab: newTab }, '');
@@ -105,8 +100,8 @@ export default function App() {
   };
 
   const handleOpenSettings = () => {
-    window.history.pushState({ modal: 'settings' }, '');
-    setShowSettings(true);
+    if (!isAdmin) return;
+    handleTabChange('settings');
   };
 
   const handlePinSuccess = (adminFlag) => {
@@ -164,16 +159,10 @@ export default function App() {
         {activeTab === 'jama' && <IncomeModule isAdmin={isAdmin} activeYear={activeYear} onUpdate={handleRefresh} />}
         {activeTab === 'kharch' && <ExpensesModule isAdmin={isAdmin} activeYear={activeYear} onUpdate={handleRefresh} />}
         {activeTab === 'reports' && <ReportsModule activeYear={activeYear} />}
+        {activeTab === 'settings' && (isAdmin ? <SettingsModal onClose={() => handleTabChange('dashboard')} onUpdate={handleRefresh} /> : <Dashboard isAdmin={isAdmin} activeYear={activeYear} onUpdate={handleRefresh} onNavigateTab={handleTabChange} />)}
       </main>
 
       <BottomNav isAdmin={isAdmin} activeTab={activeTab} onChangeTab={handleTabChange} />
-
-      {showSettings && (
-        <SettingsModal
-          onClose={() => setShowSettings(false)}
-          onUpdate={handleRefresh}
-        />
-      )}
     </div>
   );
 }
