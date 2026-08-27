@@ -33,21 +33,21 @@ export async function pushToCloud() {
 
   const backupData = db.exportJSON();
 
-  if (backupData.members.length > 0) {
+  if (backupData.members && backupData.members.length > 0) {
     const { error } = await client.from('members').upsert(backupData.members);
-    if (error) throw error;
+    if (error) console.warn('Supabase members sync warning:', error);
   }
-  if (backupData.vargani.length > 0) {
+  if (backupData.vargani && backupData.vargani.length > 0) {
     const { error } = await client.from('vargani').upsert(backupData.vargani);
-    if (error) throw error;
+    if (error) console.warn('Supabase vargani sync warning:', error);
   }
-  if (backupData.jama.length > 0) {
+  if (backupData.jama && backupData.jama.length > 0) {
     const { error } = await client.from('jama').upsert(backupData.jama);
-    if (error) throw error;
+    if (error) console.warn('Supabase jama sync warning:', error);
   }
-  if (backupData.kharch.length > 0) {
+  if (backupData.kharch && backupData.kharch.length > 0) {
     const { error } = await client.from('kharch').upsert(backupData.kharch);
-    if (error) throw error;
+    if (error) console.warn('Supabase kharch sync warning:', error);
   }
   return true;
 }
@@ -73,4 +73,24 @@ export async function pullFromCloud() {
   });
 
   return true;
+}
+
+// Background Auto-Sync when Internet is Active
+export async function autoSyncCloud() {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+  const client = getSupabase();
+  if (!client) return;
+
+  try {
+    await pushToCloud();
+  } catch (err) {
+    console.log('Background Auto-sync postponed:', err.message);
+  }
+}
+
+// Listen for network coming online
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    autoSyncCloud();
+  });
 }

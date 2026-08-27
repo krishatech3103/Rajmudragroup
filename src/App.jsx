@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { db } from './services/db';
 import PinModal from './components/PinModal';
 import Navbar from './components/Navbar';
@@ -13,6 +13,8 @@ import ReportsModule from './components/ReportsModule';
 import SettingsModal from './components/SettingsModal';
 import PWAInstallBanner from './components/PWAInstallBanner';
 
+const TAB_ORDER = ['dashboard', 'vargani', 'jama', 'kharch', 'aarti', 'bank', 'reports'];
+
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return sessionStorage.getItem('rajmudra_auth') === 'true';
@@ -26,6 +28,10 @@ export default function App() {
   const [activeYear, setActiveYear] = useState('2026-27');
   const [showSettings, setShowSettings] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Swipe Gesture Tracking
+  const touchStartXRef = useRef(0);
+  const touchStartYRef = useRef(0);
 
   useEffect(() => {
     const s = db.getSettings();
@@ -55,6 +61,37 @@ export default function App() {
       sessionStorage.setItem('rajmudra_active_tab', newTab);
       window.history.pushState({ tab: newTab }, '');
       setActiveTab(newTab);
+    }
+  };
+
+  // Swipe Left / Right to Move Between Tabs
+  const handleTouchStart = (e) => {
+    if (e.touches && e.touches.length === 1) {
+      touchStartXRef.current = e.touches[0].clientX;
+      touchStartYRef.current = e.touches[0].clientY;
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    if (!e.changedTouches || e.changedTouches.length === 0) return;
+
+    const deltaX = e.changedTouches[0].clientX - touchStartXRef.current;
+    const deltaY = e.changedTouches[0].clientY - touchStartYRef.current;
+
+    // Check if swipe is horizontal and prominent (> 60px)
+    if (Math.abs(deltaX) > 60 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+      const currentIndex = TAB_ORDER.indexOf(activeTab);
+      if (currentIndex === -1) return;
+
+      if (deltaX < -60) {
+        // Swipe Left -> Next Tab
+        const nextIndex = (currentIndex + 1) % TAB_ORDER.length;
+        handleTabChange(TAB_ORDER[nextIndex]);
+      } else if (deltaX > 60) {
+        // Swipe Right -> Previous Tab
+        const prevIndex = (currentIndex - 1 + TAB_ORDER.length) % TAB_ORDER.length;
+        handleTabChange(TAB_ORDER[prevIndex]);
+      }
     }
   };
 
@@ -91,7 +128,11 @@ export default function App() {
   }
 
   return (
-    <div className="app-container">
+    <div
+      className="app-container"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       <PWAInstallBanner />
 
       <Navbar

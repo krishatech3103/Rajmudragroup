@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Plus, Search, MessageSquare, Edit, Trash2, X, HeartHandshake, Languages, ChevronDown, ChevronUp, History, CheckCircle2, Clock } from 'lucide-react';
+import { Plus, Search, MessageSquare, Edit, Trash2, X, HeartHandshake, Languages, ChevronDown, ChevronUp, History, CheckCircle2, Clock, CreditCard, Banknote, Tag } from 'lucide-react';
 import { db } from '../services/db';
 import { generateWhatsAppReceipt } from '../utils/whatsapp';
 import { transliterateText } from '../utils/marathiTransliterate';
+import { autoSyncCloud } from '../services/supabase';
 import MemberHistoryModal from './MemberHistoryModal';
 
 export default function DonationsModule({ isAdmin, activeYear, onUpdate, initialFilter = 'all' }) {
@@ -14,11 +15,14 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
   const [expandedId, setExpandedId] = useState(null);
 
   // Form State
+  const [prefix, setPrefix] = useState('श्री'); // 'श्री', 'सौ.', 'मे.', 'कु.'
   const [memberName, setMemberName] = useState('');
   const [phone, setPhone] = useState('');
   const [amount, setAmount] = useState('');
+  const [paymentMode, setPaymentMode] = useState('Cash'); // 'Cash' or 'UPI'
   const [status, setStatus] = useState('paid'); // 'paid' or 'pending'
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [receiptNo, setReceiptNo] = useState('');
   const [note, setNote] = useState('');
 
   const members = db.getMembers(activeYear);
@@ -28,6 +32,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
   const filtered = varganiList.filter(v => {
     const vStatus = v.status || 'paid';
     const matchesSearch = v.member_name.toLowerCase().includes(search.toLowerCase()) ||
+                          (v.receipt_no || '').toLowerCase().includes(search.toLowerCase()) ||
                           (v.note || '').toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'all' || vStatus === statusFilter;
     return matchesSearch && matchesStatus;
@@ -37,19 +42,25 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
     if (!isAdmin) return;
     if (item) {
       setEditItem(item);
+      setPrefix(item.prefix || 'श्री');
       setMemberName(item.member_name);
       setPhone(item.phone || '');
       setAmount(item.amount);
+      setPaymentMode(item.payment_mode || 'Cash');
       setStatus(item.status || 'paid');
       setDate(item.date);
+      setReceiptNo(item.receipt_no || '');
       setNote(item.note || '');
     } else {
       setEditItem(null);
+      setPrefix('श्री');
       setMemberName('');
       setPhone('');
       setAmount('');
+      setPaymentMode('Cash');
       setStatus('paid');
       setDate(new Date().toISOString().split('T')[0]);
+      setReceiptNo('');
       setNote('');
     }
     setShowModal(true);
@@ -76,29 +87,27 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
 
     const memberObj = db.upsertMember(memberName, phone);
 
+    const payload = {
+      prefix,
+      member_id: memberObj.id,
+      member_name: memberObj.name,
+      phone: phone.trim() || memberObj.phone,
+      year: activeYear,
+      amount: numAmt,
+      payment_mode: paymentMode,
+      status,
+      date,
+      receipt_no: receiptNo.trim(),
+      note: note.trim()
+    };
+
     if (editItem) {
-      db.updateVargani(editItem.id, {
-        member_id: memberObj.id,
-        member_name: memberObj.name,
-        phone: phone.trim() || memberObj.phone,
-        amount: numAmt,
-        status,
-        date,
-        note: note.trim()
-      });
+      db.updateVargani(editItem.id, payload);
     } else {
-      db.addVargani({
-        member_id: memberObj.id,
-        member_name: memberObj.name,
-        phone: phone.trim() || memberObj.phone,
-        year: activeYear,
-        amount: numAmt,
-        status,
-        date,
-        note: note.trim()
-      });
+      db.addVargani(payload);
     }
 
+    autoSyncCloud();
     setShowModal(false);
     onUpdate();
   };
@@ -107,6 +116,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
     if (!isAdmin) return;
     const nextStatus = (item.status || 'paid') === 'paid' ? 'pending' : 'paid';
     db.updateVargani(item.id, { status: nextStatus });
+    autoSyncCloud();
     onUpdate();
   };
 
@@ -114,6 +124,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
     if (!isAdmin) return;
     if (confirm(`Are you sure you want to delete donation record for ${name}?`)) {
       db.deleteVargani(id);
+      autoSyncCloud();
       onUpdate();
     }
   };
@@ -132,7 +143,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
         borderRadius: 20,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justify: 'space-between',
         flexWrap: 'wrap',
         gap: 12,
         marginBottom: 14,
@@ -190,7 +201,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
             type="text"
             className="input-field"
             style={{ paddingLeft: 42, borderRadius: 14 }}
-            placeholder="Search member name..."
+            placeholder="Search member name or receipt no..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -218,6 +229,9 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
           {filtered.map(v => {
             const isExpanded = expandedId === v.id;
             const isPaid = (v.status || 'paid') === 'paid';
+            const itemPrefix = v.prefix || 'श्री';
+            const isUPI = v.payment_mode === 'UPI';
+
             return (
               <div
                 key={v.id}
@@ -235,10 +249,14 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
                 {/* Main Card Summary Row */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                   <div style={{ flex: 1, minWidth: 0, paddingRight: 10 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 12, fontWeight: 800, color: '#FF5722', background: '#FFF7ED', padding: '1px 6px', borderRadius: 6, border: '1px solid #FFEDD5' }}>
+                        {itemPrefix}
+                      </span>
                       <h4 style={{ fontSize: 16, fontWeight: 900, margin: 0, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {v.member_name}
                       </h4>
+
                       {/* Paid / Pending Status Badge */}
                       <span
                         onClick={(e) => { e.stopPropagation(); toggleStatus(v); }}
@@ -251,11 +269,26 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
                         }}
                       >
                         {isPaid ? <CheckCircle2 size={11} /> : <Clock size={11} />}
-                        {isPaid ? 'PAID (जमा)' : 'PENDING (बाकी)'}
+                        {isPaid ? 'PAID' : 'PENDING'}
+                      </span>
+
+                      {/* Payment Mode Badge */}
+                      <span style={{
+                        background: isUPI ? '#EFF6FF' : '#F8FAFC',
+                        color: isUPI ? '#2563EB' : '#475569',
+                        border: isUPI ? '1px solid #BFDBFE' : '1px solid #E2E8F0',
+                        padding: '2px 7px', borderRadius: 8, fontSize: 10, fontWeight: 800,
+                        display: 'flex', alignItems: 'center', gap: 3
+                      }}>
+                        {isUPI ? <CreditCard size={11} /> : <Banknote size={11} />}
+                        {isUPI ? 'UPI' : 'Cash'}
                       </span>
                     </div>
-                    <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, margin: '2px 0 0 0' }}>
-                      {new Date(v.date).toLocaleDateString('en-IN')} {v.note ? `• ${v.note}` : ''}
+
+                    <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, margin: '4px 0 0 0' }}>
+                      📅 {new Date(v.date).toLocaleDateString('en-IN')}
+                      {v.receipt_no ? ` • पावती क्र.: ${v.receipt_no}` : ''}
+                      {v.note ? ` • 📌 ${v.note}` : ''}
                     </p>
                   </div>
 
@@ -363,9 +396,10 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
             </div>
 
             <form onSubmit={handleSave}>
+              {/* Salutation Prefix & Member Name */}
               <div className="input-group">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <label className="input-label" style={{ margin: 0 }}>Member Name *</label>
+                  <label className="input-label" style={{ margin: 0 }}>Salutation & Donor Name *</label>
                   <button
                     type="button"
                     onClick={handleTransliterateName}
@@ -380,18 +414,43 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
                   </button>
                 </div>
 
-                <input
-                  type="text"
-                  className="input-field"
-                  value={memberName}
-                  onChange={e => setMemberName(e.target.value)}
-                  placeholder="e.g. Ramesh Patil or रमेश पाटील"
-                  list="member-suggestions"
-                  required
-                />
-                <datalist id="member-suggestions">
-                  {members.map(m => <option key={m.id} value={m.name} />)}
-                </datalist>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <select
+                    value={prefix}
+                    onChange={e => setPrefix(e.target.value)}
+                    style={{
+                      width: 90,
+                      padding: '12px 8px',
+                      borderRadius: 14,
+                      border: '1.5px solid #CBD5E1',
+                      background: '#F8FAFC',
+                      fontSize: 14,
+                      fontWeight: 800,
+                      color: '#0F172A',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="श्री">श्री</option>
+                    <option value="सौ.">सौ.</option>
+                    <option value="मे.">मे.</option>
+                    <option value="कु.">कु.</option>
+                  </select>
+
+                  <input
+                    type="text"
+                    className="input-field"
+                    style={{ flex: 1 }}
+                    value={memberName}
+                    onChange={e => setMemberName(e.target.value)}
+                    placeholder="e.g. Ramesh Patil or रमेश पाटील"
+                    list="member-suggestions"
+                    required
+                  />
+                  <datalist id="member-suggestions">
+                    {members.map(m => <option key={m.id} value={m.name} />)}
+                  </datalist>
+                </div>
               </div>
 
               <div className="input-group">
@@ -415,6 +474,42 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
                   placeholder="e.g. 1000"
                   required
                 />
+              </div>
+
+              {/* Payment Mode Selector: Cash vs UPI */}
+              <div className="input-group">
+                <label className="input-label">Payment Mode (देयक पद्धत) *</label>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMode('Cash')}
+                    style={{
+                      flex: 1, padding: '10px', borderRadius: 12,
+                      border: paymentMode === 'Cash' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                      background: paymentMode === 'Cash' ? '#EFF6FF' : '#ffffff',
+                      color: paymentMode === 'Cash' ? '#2563EB' : '#64748B',
+                      fontWeight: 800, fontSize: 13, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                    }}
+                  >
+                    <Banknote size={16} /> Cash (रोख)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMode('UPI')}
+                    style={{
+                      flex: 1, padding: '10px', borderRadius: 12,
+                      border: paymentMode === 'UPI' ? '2px solid #059669' : '1px solid #CBD5E1',
+                      background: paymentMode === 'UPI' ? '#ECFDF5' : '#ffffff',
+                      color: paymentMode === 'UPI' ? '#059669' : '#64748B',
+                      fontWeight: 800, fontSize: 13, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                    }}
+                  >
+                    <CreditCard size={16} /> Online / UPI (यू.पी.आय.)
+                  </button>
+                </div>
               </div>
 
               {/* Status Picker: Paid vs Pending */}
@@ -453,24 +548,37 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
                 </div>
               </div>
 
-              <div className="input-group">
-                <label className="input-label">Date</label>
-                <input
-                  type="date"
-                  className="input-field"
-                  value={date}
-                  onChange={e => setDate(e.target.value)}
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div className="input-group">
+                  <label className="input-label">Receipt No. (पावती क्र.)</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={receiptNo}
+                    onChange={e => setReceiptNo(e.target.value)}
+                    placeholder="e.g. 101"
+                  />
+                </div>
+
+                <div className="input-group">
+                  <label className="input-label">Date</label>
+                  <input
+                    type="date"
+                    className="input-field"
+                    value={date}
+                    onChange={e => setDate(e.target.value)}
+                  />
+                </div>
               </div>
 
               <div className="input-group">
-                <label className="input-label">Note / Receipt No.</label>
+                <label className="input-label">Note (नोंद - ऐच्छिक)</label>
                 <input
                   type="text"
                   className="input-field"
                   value={note}
                   onChange={e => setNote(e.target.value)}
-                  placeholder="e.g. Receipt No. 104"
+                  placeholder="अतिरिक्त नोंद (WhatsApp पावतीत दिसणार नाही)"
                 />
               </div>
 
