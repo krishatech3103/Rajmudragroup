@@ -13,7 +13,7 @@ import ReportsModule from './components/ReportsModule';
 import SettingsModal from './components/SettingsModal';
 import PWAInstallBanner from './components/PWAInstallBanner';
 
-import { autoPullCloud } from './services/supabase';
+import { autoPullCloud, setupRealtimeSync } from './services/supabase';
 
 const TAB_ORDER = ['dashboard', 'vargani', 'jama', 'kharch', 'aarti', 'bank', 'reports'];
 
@@ -33,6 +33,18 @@ export default function App() {
   // Swipe Gesture Tracking
   const touchStartXRef = useRef(0);
   const touchStartYRef = useRef(0);
+
+  // Set up real-time multi-phone subscription & background sync
+  useEffect(() => {
+    const cleanup = setupRealtimeSync(() => {
+      const s = db.getSettings();
+      setActiveYear(s.active_year || '2026-27');
+      setRefreshKey(prev => prev + 1);
+    });
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, []);
 
   // Run ONCE on first app mount: pull live data from Supabase
   useEffect(() => {
@@ -121,8 +133,7 @@ export default function App() {
     setIsAdmin(false);
   };
 
-  const handleRefresh = async () => {
-    await autoPullCloud();
+  const handleRefresh = () => {
     const s = db.getSettings();
     setActiveYear(s.active_year || '2026-27');
     setRefreshKey(prev => prev + 1);

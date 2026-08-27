@@ -1,10 +1,7 @@
 /**
  * LIVE Supabase Database Service
  * ================================
- * Supabase is the PRIMARY database. All reads/writes go here.
- * localStorage is used ONLY as an offline cache when internet is unavailable.
- * 
- * Credentials are baked into the build via .env file — no per-device setup needed.
+ * Non-blocking, instant local UI response + background Supabase cloud sync + Realtime multi-phone listener.
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -15,11 +12,11 @@ const BUILT_IN_URL = import.meta.env.VITE_SUPABASE_URL || '';
 const BUILT_IN_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 let _client = null;
+let _realtimeChannel = null;
 
 export function getSupabase() {
   if (_client) return _client;
 
-  // Prefer built-in .env credentials, fallback to admin-saved credentials in settings
   const settings = db.getSettings();
   const url = (BUILT_IN_URL || settings.supabase_url || '').trim();
   const key = (BUILT_IN_KEY || settings.supabase_key || '').trim();
@@ -55,35 +52,32 @@ async function liveRead(table, fallbackFn) {
   }
 }
 
-// ── Generic live upsert to a Supabase table ───────────────────────────────
-async function liveUpsert(table, record) {
-  const client = getSupabase();
-  if (!client || !navigator.onLine) return; // silent fail — local already saved
-
-  try {
-    const { error } = await client.from(table).upsert(record);
-    if (error) console.warn(`[Supabase] Upsert failed for ${table}:`, error.message);
-  } catch (e) {
-    console.warn(`[Supabase] Upsert exception for ${table}:`, e.message);
-  }
-}
-
-// ── Generic live delete from a Supabase table ────────────────────────────
-async function liveDelete(table, id) {
+// ── Generic live upsert to a Supabase table (NON-BLOCKING BACKGROUND PUSH) ──
+function liveUpsert(table, record) {
   const client = getSupabase();
   if (!client || !navigator.onLine) return;
 
-  try {
-    const { error } = await client.from(table).delete().eq('id', id);
-    if (error) console.warn(`[Supabase] Delete failed for ${table}:`, error.message);
-  } catch (e) {
-    console.warn(`[Supabase] Delete exception for ${table}:`, e.message);
-  }
+  // Non-blocking async execution
+  client.from(table).upsert(record).then(({ error }) => {
+    if (error) console.warn(`[Supabase] Upsert warning for ${table}:`, error.message);
+  }).catch(e => {
+    console.warn(`[Supabase] Upsert exception for ${table}:`, e.message);
+  });
 }
 
-// ── HIGH-LEVEL LIVE CRUD METHODS ─────────────────────────────────────────
-// These are called by modules instead of db.addVargani / db.updateVargani etc.
+// ── Generic live delete from a Supabase table (NON-BLOCKING BACKGROUND DELETE) ──
+function liveDelete(table, id) {
+  const client = getSupabase();
+  if (!client || !navigator.onLine) return;
 
+  client.from(table).delete().eq('id', id).then(({ error }) => {
+    if (error) console.warn(`[Supabase] Delete warning for ${table}:`, error.message);
+  }).catch(e => {
+    console.warn(`[Supabase] Delete exception for ${table}:`, e.message);
+  });
+}
+
+// ── HIGH-LEVEL INSTANT CRUD METHODS ─────────────────────────────────────────
 // VARGANI (Donations)
 export async function liveGetVargani(year = null) {
   const data = await liveRead('vargani', () => db.getVargani(year));
@@ -94,21 +88,21 @@ export async function liveGetVargani(year = null) {
   return data;
 }
 
-export async function liveAddVargani(record) {
-  const newItem = db.addVargani(record); // save to local cache first (instant UI)
-  await liveUpsert('vargani', newItem);
+export function liveAddVargani(record) {
+  const newItem = db.addVargani(record); // 1. Local instant update (0ms)
+  liveUpsert('vargani', newItem);        // 2. Background push
   return newItem;
 }
 
-export async function liveUpdateVargani(id, data) {
-  const updated = db.updateVargani(id, data);
-  if (updated) await liveUpsert('vargani', updated);
+export function liveUpdateVargani(id, data) {
+  const updated = db.updateVargani(id, data); // 1. Local instant update (0ms)
+  if (updated) liveUpsert('vargani', updated); // 2. Background push
   return updated;
 }
 
-export async function liveDeleteVargani(id) {
+export function liveDeleteVargani(id) {
   db.deleteVargani(id);
-  await liveDelete('vargani', id);
+  liveDelete('vargani', id);
 }
 
 // JAMA (Income)
@@ -119,21 +113,21 @@ export async function liveGetJama(year = null) {
   return data;
 }
 
-export async function liveAddJama(record) {
+export function liveAddJama(record) {
   const newItem = db.addJama(record);
-  await liveUpsert('jama', newItem);
+  liveUpsert('jama', newItem);
   return newItem;
 }
 
-export async function liveUpdateJama(id, data) {
+export function liveUpdateJama(id, data) {
   const updated = db.updateJama(id, data);
-  if (updated) await liveUpsert('jama', updated);
+  if (updated) liveUpsert('jama', updated);
   return updated;
 }
 
-export async function liveDeleteJama(id) {
+export function liveDeleteJama(id) {
   db.deleteJama(id);
-  await liveDelete('jama', id);
+  liveDelete('jama', id);
 }
 
 // KHARCH (Expenses)
@@ -144,21 +138,21 @@ export async function liveGetKharch(year = null) {
   return data;
 }
 
-export async function liveAddKharch(record) {
+export function liveAddKharch(record) {
   const newItem = db.addKharch(record);
-  await liveUpsert('kharch', newItem);
+  liveUpsert('kharch', newItem);
   return newItem;
 }
 
-export async function liveUpdateKharch(id, data) {
+export function liveUpdateKharch(id, data) {
   const updated = db.updateKharch(id, data);
-  if (updated) await liveUpsert('kharch', updated);
+  if (updated) liveUpsert('kharch', updated);
   return updated;
 }
 
-export async function liveDeleteKharch(id) {
+export function liveDeleteKharch(id) {
   db.deleteKharch(id);
-  await liveDelete('kharch', id);
+  liveDelete('kharch', id);
 }
 
 // AARTI
@@ -169,21 +163,21 @@ export async function liveGetAarti(year = null) {
   return data;
 }
 
-export async function liveAddAarti(record) {
+export function liveAddAarti(record) {
   const newItem = db.addAarti(record);
-  await liveUpsert('aarti', newItem);
+  liveUpsert('aarti', newItem);
   return newItem;
 }
 
-export async function liveUpdateAarti(id, data) {
+export function liveUpdateAarti(id, data) {
   const updated = db.updateAarti(id, data);
-  if (updated) await liveUpsert('aarti', updated);
+  if (updated) liveUpsert('aarti', updated);
   return updated;
 }
 
-export async function liveDeleteAarti(id) {
+export function liveDeleteAarti(id) {
   db.deleteAarti(id);
-  await liveDelete('aarti', id);
+  liveDelete('aarti', id);
 }
 
 // BANK FD
@@ -194,21 +188,21 @@ export async function liveGetBankFD(year = null) {
   return data;
 }
 
-export async function liveAddBankFD(record) {
+export function liveAddBankFD(record) {
   const newItem = db.addBankFD(record);
-  await liveUpsert('bank_fd', newItem);
+  liveUpsert('bank_fd', newItem);
   return newItem;
 }
 
-export async function liveUpdateBankFD(id, data) {
+export function liveUpdateBankFD(id, data) {
   const updated = db.updateBankFD(id, data);
-  if (updated) await liveUpsert('bank_fd', updated);
+  if (updated) liveUpsert('bank_fd', updated);
   return updated;
 }
 
-export async function liveDeleteBankFD(id) {
+export function liveDeleteBankFD(id) {
   db.deleteBankFD(id);
-  await liveDelete('bank_fd', id);
+  liveDelete('bank_fd', id);
 }
 
 // MEMBERS
@@ -218,13 +212,12 @@ export async function liveGetMembers(year = null) {
   return data;
 }
 
-// ── BULK BACKUP OPERATIONS (for Settings: JSON export only) ──────────────
+// ── BULK BACKUP OPERATIONS ─────────────────────────────────────────────
 export async function pushToCloud() {
   const client = getSupabase();
-  if (!client) throw new Error('Supabase not configured. Add credentials in Settings.');
+  if (!client) return false;
 
   const backupData = db.exportJSON();
-
   const tables = [
     ['members', backupData.members],
     ['vargani', backupData.vargani],
@@ -236,8 +229,7 @@ export async function pushToCloud() {
 
   for (const [table, rows] of tables) {
     if (rows && rows.length > 0) {
-      const { error } = await client.from(table).upsert(rows);
-      if (error) console.warn(`[Supabase] Bulk push warning for ${table}:`, error);
+      await client.from(table).upsert(rows);
     }
   }
   return true;
@@ -245,7 +237,7 @@ export async function pushToCloud() {
 
 export async function pullFromCloud() {
   const client = getSupabase();
-  if (!client) throw new Error('Supabase not configured. Add credentials in Settings.');
+  if (!client) return false;
 
   const fetches = await Promise.all([
     client.from('members').select(),
@@ -258,26 +250,62 @@ export async function pullFromCloud() {
 
   const [members, vargani, jama, kharch, aarti, bank_fd] = fetches.map(r => r.data || []);
 
-  db.importJSON({ members, vargani, jama, kharch, aarti, bank_fd });
-  return true;
+  // Only import if data was successfully received
+  if (members.length || vargani.length || jama.length || kharch.length || aarti.length || bank_fd.length) {
+    db.importJSON({ members, vargani, jama, kharch, aarti, bank_fd });
+    return true;
+  }
+  return false;
 }
 
-// ── AUTO-SYNC on reconnect (pushes any offline local changes) ─────────────
 export async function autoPullCloud() {
   if (!navigator.onLine) return false;
   const client = getSupabase();
   if (!client) return false;
 
   try {
-    await pullFromCloud();
-    return true;
+    return await pullFromCloud();
   } catch (e) {
-    console.warn('[Supabase] Auto-pull failed:', e.message);
+    console.warn('[Supabase] Auto-pull error:', e.message);
     return false;
   }
 }
 
-// Listen for network reconnection → push any offline writes
+// ── REAL-TIME MULTI-PHONE SYNC SETUP ───────────────────────────────────────
+export function setupRealtimeSync(onSyncCallback) {
+  const client = getSupabase();
+  if (!client) return () => {};
+
+  // 1. Initial silent background sync
+  autoPullCloud().then(didPull => {
+    if (didPull && onSyncCallback) onSyncCallback();
+  });
+
+  // 2. Realtime WebSocket listener for instant multi-phone synchronization
+  if (!_realtimeChannel) {
+    _realtimeChannel = client
+      .channel('public:db_changes')
+      .on('postgres_changes', { event: '*', schema: 'public' }, async () => {
+        const didPull = await autoPullCloud();
+        if (didPull && onSyncCallback) onSyncCallback();
+      })
+      .subscribe();
+  }
+
+  // 3. Background periodic sync interval (every 10 seconds)
+  const syncInterval = setInterval(async () => {
+    if (navigator.onLine) {
+      const didPull = await autoPullCloud();
+      if (didPull && onSyncCallback) onSyncCallback();
+    }
+  }, 10000);
+
+  return () => {
+    clearInterval(syncInterval);
+  };
+}
+
+// Listen for network reconnection → push offline writes
 if (typeof window !== 'undefined') {
   window.addEventListener('online', async () => {
     const client = getSupabase();
