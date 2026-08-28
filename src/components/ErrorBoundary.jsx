@@ -54,7 +54,7 @@ export default class ErrorBoundary extends React.Component {
               राजमुद्रा मंडळ अॅप त्रुटी (App Exception)
             </h3>
             <p style={{ fontSize: 13, color: '#94A3B8', lineHeight: 1.5, marginBottom: 20 }}>
-              An unexpected application error occurred. Your data is safely stored in local memory.
+              An unexpected application error occurred. Supabase data is unaffected; reload to fetch a fresh server view.
             </p>
 
             <button

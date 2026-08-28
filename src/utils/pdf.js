@@ -1,11 +1,21 @@
 import html2pdf from 'html2pdf.js';
-import { db } from '../services/db';
+import { calculateSummary, getKharchByCategory } from './ledger';
 
-export function generatePDFReport(year) {
-  const summary = db.getSummary(year);
-  const vargani = db.getVargani(year);
-  const kharch = db.getKharch(year);
-  const kharchCats = db.getKharchByCategory(year);
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character]);
+}
+
+export function generatePDFReport(year, data = {}) {
+  const ledgerData = data || {};
+  const summary = calculateSummary(year, ledgerData);
+  const vargani = (Array.isArray(ledgerData.vargani) ? ledgerData.vargani : []).filter(record => !year || record?.year === year);
+  const kharchCats = getKharchByCategory(year, ledgerData.kharch);
 
   const element = document.createElement('div');
   element.style.padding = '35px';
@@ -14,6 +24,7 @@ export function generatePDFReport(year) {
   element.style.background = '#ffffff';
 
   const fmt = (v) => `₹${Number(v).toLocaleString('en-IN')}`;
+  const safeYear = escapeHtml(year);
   const now = new Date();
   const dateStr = now.toLocaleDateString('mr-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const timeStr = now.toLocaleTimeString('mr-IN', { hour: '2-digit', minute: '2-digit' });
@@ -26,7 +37,7 @@ export function generatePDFReport(year) {
         राजमुद्रा गणेशोत्सव मंडळ
       </h1>
       <h2 style="margin: 4px 0 0 0; color: #2D3748; font-size: 17px; font-weight: 800;">
-        वार्षिक जमा-खर्च व हिशोब पत्रक (उत्सव वर्ष: ${year})
+        वार्षिक जमा-खर्च व हिशोब पत्रक (उत्सव वर्ष: ${safeYear})
       </h2>
       <div style="margin-top: 10px; font-size: 12px; color: #4A5568; font-weight: 700;">
         अहवाल निर्मिती दिनांक: <b>${dateStr}</b> | वेळ: <b>${timeStr}</b>
@@ -87,7 +98,7 @@ export function generatePDFReport(year) {
             <tr><td colspan="2" style="padding: 12px; text-align: center; color: #64748B; border: 1px solid #E2E8F0;">कोणतीही खर्चाची नोंद उपलब्ध नाही.</td></tr>
           ` : kharchCats.map(c => `
             <tr>
-              <td style="padding: 8px; border: 1px solid #E2E8F0; font-weight: 600;">${c.category}</td>
+              <td style="padding: 8px; border: 1px solid #E2E8F0; font-weight: 600;">${escapeHtml(c.category)}</td>
               <td style="padding: 8px; border: 1px solid #E2E8F0; text-align: right; font-weight: 800; color: #DC2626;">${fmt(c.total)}</td>
             </tr>
           `).join('')}
@@ -117,8 +128,8 @@ export function generatePDFReport(year) {
             <tr>
               <td style="padding: 7px; border: 1px solid #E2E8F0; text-align: center;">${idx + 1}</td>
               <td style="padding: 7px; border: 1px solid #E2E8F0;">${new Date(v.date).toLocaleDateString('mr-IN')}</td>
-              <td style="padding: 7px; border: 1px solid #E2E8F0; font-weight: 700;">${v.member_name}</td>
-              <td style="padding: 7px; border: 1px solid #E2E8F0; color: #64748B;">${v.note || '-'}</td>
+              <td style="padding: 7px; border: 1px solid #E2E8F0; font-weight: 700;">${escapeHtml(v.member_name)}</td>
+              <td style="padding: 7px; border: 1px solid #E2E8F0; color: #64748B;">${escapeHtml(v.note || '-')}</td>
               <td style="padding: 7px; border: 1px solid #E2E8F0; text-align: right; color: #1D4ED8; font-weight: 800;">${fmt(v.amount)}</td>
             </tr>
           `).join('')}

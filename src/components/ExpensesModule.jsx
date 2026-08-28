@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Search, Edit, Trash2, X, ArrowUpCircle, Languages, Lock, ChevronDown, ChevronUp } from 'lucide-react';
-import { db } from '../services/db';
 import { transliterateText } from '../utils/marathiTransliterate';
-import { liveAddKharch, liveUpdateKharch, liveDeleteKharch } from '../services/supabase';
+import { createRecord, deleteRecord, updateRecord } from '../services/supabase';
 
 const EXPENSE_CATEGORIES = [
   'All',
@@ -19,12 +18,13 @@ const EXPENSE_CATEGORIES = [
   'Other Expense'
 ];
 
-export default function ExpensesModule({ isAdmin, activeYear, onUpdate }) {
+export default function ExpensesModule({ isAdmin, activeYear, onUpdate, data = {} }) {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Form State
   const [title, setTitle] = useState('');
@@ -33,7 +33,8 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate }) {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');
 
-  const kharchList = db.getKharch(activeYear);
+  const kharchList = (Array.isArray(data.kharch) ? data.kharch : [])
+    .filter(record => record?.year === activeYear);
   const totalKharch = kharchList.reduce((sum, k) => sum + Number(k.amount), 0);
 
   const filtered = kharchList.filter(k => {
@@ -68,7 +69,7 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate }) {
     setShowModal(true);
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     if (!title.trim() || !amount) {
       alert('Expense title and amount are required!');
@@ -80,25 +81,34 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate }) {
       return;
     }
 
-    if (editItem) {
-      liveUpdateKharch(editItem.id, { title: title.trim(), category, amount: numAmt, date, note: note.trim() });
-    } else {
-      liveAddKharch({ title: title.trim(), category, year: activeYear, amount: numAmt, date, note: note.trim() });
+    setIsSaving(true);
+    try {
+      const payload = { title: title.trim(), category, year: activeYear, amount: numAmt, date, note: note.trim() };
+      const record = editItem
+        ? await updateRecord('kharch', editItem.id, payload)
+        : await createRecord('kharch', payload);
+      onUpdate?.({ table: 'kharch', eventType: 'UPSERT', record });
+      setShowModal(false);
+    } catch (error) {
+      alert(`Could not save the expense: ${error.message}`);
+    } finally {
+      setIsSaving(false);
     }
-
-    setShowModal(false);
-    onUpdate();
   };
 
-  const handleDelete = (id, title, isLocked) => {
+  const handleDelete = async (id, title, isLocked) => {
     if (!isAdmin) return;
     if (isLocked) {
       alert('Official Audit Record cannot be deleted!');
       return;
     }
     if (confirm(`Delete expense record "${title}"?`)) {
-      liveDeleteKharch(id);
-      onUpdate();
+      try {
+        await deleteRecord('kharch', id);
+        onUpdate?.({ table: 'kharch', eventType: 'DELETE', id });
+      } catch (error) {
+        alert(`Could not delete the expense: ${error.message}`);
+      }
     }
   };
 
@@ -362,8 +372,8 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate }) {
                 />
               </div>
 
-              <button type="submit" className="btn btn-danger" style={{ marginTop: 14, width: '100%' }}>
-                {editItem ? 'Update Expense' : 'Save Expense'}
+              <button type="submit" className="btn btn-danger" disabled={isSaving} style={{ marginTop: 14, width: '100%', opacity: isSaving ? 0.7 : 1 }}>
+                {isSaving ? 'Saving to Supabase…' : editItem ? 'Update Expense' : 'Save Expense'}
               </button>
             </form>
           </div>

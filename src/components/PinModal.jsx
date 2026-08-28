@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../services/db';
-import { hashPin } from '../utils/security';
-import { Lock, User, Eye, EyeOff, ArrowRight, Calendar, AlertTriangle } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, ArrowRight, Calendar } from 'lucide-react';
 
-export default function PinModal({ onSuccess }) {
-  const availableYears = db.getAvailableYears();
+const LEGACY_ROLE_PINS = Object.freeze({
+  admin: '1234',
+  viewer: '0000'
+});
+
+export default function PinModal({ onSuccess, availableYears = [], isLoading = false, loadError = '', onRetry }) {
+  const years = availableYears.length ? availableYears : ['2024-25', '2025-26', '2026-27'];
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedYear, setSelectedYear] = useState(availableYears[availableYears.length - 1] || '2026-27');
+  const [selectedYear, setSelectedYear] = useState(years[years.length - 1] || '2026-27');
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
 
@@ -25,9 +28,15 @@ export default function PinModal({ onSuccess }) {
     return () => clearInterval(timer);
   }, [lockoutTime]);
 
+  useEffect(() => {
+    if (!years.includes(selectedYear)) {
+      setSelectedYear(years[years.length - 1] || '2026-27');
+    }
+  }, [selectedYear, years]);
+
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (lockoutTime > 0) return;
+    if (lockoutTime > 0 || isLoading || loadError) return;
 
     const cleanUser = username.trim().toLowerCase();
     const cleanPass = password.trim();
@@ -37,28 +46,17 @@ export default function PinModal({ onSuccess }) {
       return;
     }
 
-    const settings = db.getSettings();
-    const inputHash = await hashPin(cleanPass);
-
     // Check Admin
     if (cleanUser === 'admin') {
-      const storedAdminPin = settings.admin_pin || '1234';
-      const storedHash = await hashPin(storedAdminPin);
-
-      if (cleanPass === storedAdminPin || inputHash === storedHash || cleanPass === '1234') {
-        db.setSetting('active_year', selectedYear);
-        onSuccess(true); // Admin Mode
+      if (cleanPass === LEGACY_ROLE_PINS.admin) {
+        onSuccess(true, selectedYear); // Admin Mode
         return;
       }
     } 
     // Check Viewer / User
     else if (cleanUser === 'user' || cleanUser === 'viewer') {
-      const storedViewerPin = settings.viewer_pin || '0000';
-      const storedHash = await hashPin(storedViewerPin);
-
-      if (cleanPass === storedViewerPin || inputHash === storedHash || cleanPass === '0000') {
-        db.setSetting('active_year', selectedYear);
-        onSuccess(false); // Viewer Mode
+      if (cleanPass === LEGACY_ROLE_PINS.viewer) {
+        onSuccess(false, selectedYear); // Viewer Mode
         return;
       }
     } 
@@ -151,7 +149,7 @@ export default function PinModal({ onSuccess }) {
                     cursor: 'pointer'
                   }}
                 >
-                  {availableYears.map(y => (
+                  {years.map(y => (
                     <option key={y} value={y} style={{ background: '#0F172A' }}>
                       Year {y}
                     </option>
@@ -235,31 +233,41 @@ export default function PinModal({ onSuccess }) {
               </div>
             </div>
 
-            {error && (
-              <p style={{
+            {(error || loadError) && (
+              <div style={{
                 color: '#F87171', fontSize: 12, fontWeight: 700, marginBottom: 18,
                 background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)',
                 padding: '10px 14px', borderRadius: 12, textAlign: 'center', lineHeight: 1.4
               }}>
-                {error}
-              </p>
+                <div>{loadError || error}</div>
+                {loadError && onRetry && (
+                  <button
+                    type="button"
+                    onClick={onRetry}
+                    disabled={isLoading}
+                    style={{ marginTop: 8, border: '1px solid rgba(248,113,113,0.55)', borderRadius: 8, background: 'transparent', color: '#FCA5A5', padding: '5px 9px', fontWeight: 800, cursor: isLoading ? 'not-allowed' : 'pointer' }}
+                  >
+                    Retry connection
+                  </button>
+                )}
+              </div>
             )}
 
             <button
               type="submit"
               className="btn btn-primary"
-              disabled={lockoutTime > 0}
+              disabled={lockoutTime > 0 || isLoading || !!loadError}
               style={{
                 width: '100%',
                 borderRadius: 16,
                 padding: '15px 20px',
                 fontSize: 16,
                 fontWeight: 900,
-                opacity: lockoutTime > 0 ? 0.5 : 1,
-                cursor: lockoutTime > 0 ? 'not-allowed' : 'pointer'
+                opacity: lockoutTime > 0 || isLoading || loadError ? 0.5 : 1,
+                cursor: lockoutTime > 0 || isLoading || loadError ? 'not-allowed' : 'pointer'
               }}
             >
-              {lockoutTime > 0 ? `Locked Out (${lockoutTime}s)` : 'Log In'} <ArrowRight size={20} />
+              {isLoading ? 'Connecting to Supabase…' : lockoutTime > 0 ? `Locked Out (${lockoutTime}s)` : 'Log In'} <ArrowRight size={20} />
             </button>
           </form>
         </div>

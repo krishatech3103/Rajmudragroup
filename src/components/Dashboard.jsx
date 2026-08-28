@@ -1,11 +1,12 @@
 import React from 'react';
 import { Wallet, Sparkles, ArrowUpRight, ArrowDownRight, Flame, Landmark, ChevronRight, Users, CheckCircle2, Clock } from 'lucide-react';
-import { db } from '../services/db';
+import { calculateBankFDSummary, calculateSummary } from '../utils/ledger';
 
-export default function Dashboard({ isAdmin, activeYear, onUpdate, onNavigateTab }) {
-  const summary = db.getSummary(activeYear);
-  const aartiList = db.getAarti(activeYear);
-  const fdSummary = db.getBankFDSummary();
+export default function Dashboard({ isAdmin, activeYear, onUpdate, onNavigateTab, data = {} }) {
+  const ledgerData = data || {};
+  const summary = calculateSummary(activeYear, ledgerData);
+  const aartiList = (Array.isArray(ledgerData.aarti) ? ledgerData.aarti : []).filter(aarti => !activeYear || aarti?.year === activeYear);
+  const fdSummary = calculateBankFDSummary(ledgerData.bank_fd);
 
   const isPositive = summary.balance >= 0;
   const fmt = (v) => `Rs. ${Number(v).toLocaleString('en-IN')}`;

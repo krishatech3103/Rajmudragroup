@@ -4,7 +4,7 @@ import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import './index.css'
 
-// Register Service Worker for PWA Offline & Install Support
+// Register the PWA shell cache. It never caches Supabase data requests.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')

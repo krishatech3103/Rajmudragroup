@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { Plus, Search, Edit, Trash2, X, ArrowDownCircle, Languages, Lock, MessageSquare, ChevronDown, ChevronUp, CreditCard, Banknote } from 'lucide-react';
-import { db } from '../services/db';
 import { generateWhatsAppReceipt } from '../utils/whatsapp';
 import { transliterateText } from '../utils/marathiTransliterate';
-import { liveAddVargani, liveUpdateVargani, liveDeleteVargani, liveAddJama, liveUpdateJama, liveDeleteJama } from '../services/supabase';
+import { createRecord, deleteRecord, findOrCreateMember, updateRecord } from '../services/supabase';
 
 const INCOME_CATEGORIES = [
   'All',
@@ -15,12 +14,13 @@ const INCOME_CATEGORIES = [
   'Other Income'
 ];
 
-export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
+export default function IncomeModule({ isAdmin, activeYear, onUpdate, data = {} }) {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Form State
   const [entryType, setEntryType] = useState('donation'); // 'donation' or 'other'
@@ -33,9 +33,13 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
   const [paymentMode, setPaymentMode] = useState('Cash'); // 'Cash' or 'Online'
   const [note, setNote] = useState('');
 
-  const members = db.getMembers();
-  const jamaList = db.getJama(activeYear).map(j => ({ ...j, isVargani: false }));
-  const varganiList = db.getVargani(activeYear).map(v => ({
+  const members = Array.isArray(data.members) ? data.members : [];
+  const jamaList = (Array.isArray(data.jama) ? data.jama : [])
+    .filter(record => record?.year === activeYear)
+    .map(j => ({ ...j, isVargani: false }));
+  const varganiList = (Array.isArray(data.vargani) ? data.vargani : [])
+    .filter(record => record?.year === activeYear)
+    .map(v => ({
     id: `vargani_${v.id}`,
     raw_id: v.id,
     title: v.member_name,
@@ -101,7 +105,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
     }
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     const numAmt = Number(amount);
     if (isNaN(numAmt) || numAmt <= 0) {
@@ -109,76 +113,75 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
       return;
     }
 
-    if (entryType === 'donation') {
-      if (!memberName.trim()) {
-        alert('Member Name is required!');
-        return;
-      }
-      const memberObj = db.upsertMember(memberName, phone);
-
-      if (editItem && editItem.isVargani) {
-        liveUpdateVargani(editItem.raw_id, {
-          member_id: memberObj.id,
-          member_name: memberObj.name,
-          phone: phone.trim() || memberObj.phone,
-          amount: numAmt,
-          date,
-          payment_mode: paymentMode,
-          note: note.trim()
-        });
-      } else {
-        liveAddVargani({
-          member_id: memberObj.id,
-          member_name: memberObj.name,
-          phone: phone.trim() || memberObj.phone,
-          year: activeYear,
-          amount: numAmt,
-          date,
-          payment_mode: paymentMode,
-          note: note.trim()
-        });
-      }
-    } else {
-      if (!title.trim()) {
-        alert('Income title is required!');
-        return;
-      }
-
-      if (editItem && !editItem.isVargani) {
-        liveUpdateJama(editItem.id, {
-          title: title.trim(),
-          category,
-          amount: numAmt,
-          date,
-          payment_mode: paymentMode,
-          note: note.trim()
-        });
-      } else {
-        liveAddJama({
-          title: title.trim(),
-          category,
-          year: activeYear,
-          amount: numAmt,
-          date,
-          payment_mode: paymentMode,
-          note: note.trim()
-        });
-      }
+    if (entryType === 'donation' && !memberName.trim()) {
+      alert('Member Name is required!');
+      return;
+    }
+    if (entryType !== 'donation' && !title.trim()) {
+      alert('Income title is required!');
+      return;
     }
 
-    setShowModal(false);
-    onUpdate();
+    setIsSaving(true);
+    try {
+      if (entryType === 'donation') {
+        const memberObj = await findOrCreateMember(
+          { name: memberName, phone },
+          { knownMembers: members }
+        );
+        const payload = {
+          member_id: memberObj.id,
+          member_name: memberObj.name,
+          phone: phone.trim() || memberObj.phone,
+          year: activeYear,
+          amount: numAmt,
+          date,
+          payment_mode: paymentMode,
+          note: note.trim()
+        };
+        const record = editItem && editItem.isVargani
+          ? await updateRecord('vargani', editItem.raw_id, payload)
+          : await createRecord('vargani', payload);
+        onUpdate?.({ table: 'members', eventType: 'UPSERT', record: memberObj });
+        onUpdate?.({ table: 'vargani', eventType: 'UPSERT', record });
+      } else {
+        const payload = {
+          title: title.trim(),
+          category,
+          year: activeYear,
+          amount: numAmt,
+          date,
+          payment_mode: paymentMode,
+          note: note.trim()
+        };
+        const record = editItem && !editItem.isVargani
+          ? await updateRecord('jama', editItem.id, payload)
+          : await createRecord('jama', payload);
+        onUpdate?.({ table: 'jama', eventType: 'UPSERT', record });
+      }
+
+      setShowModal(false);
+    } catch (error) {
+      alert(`Could not save the income entry: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleDelete = (item) => {
+  const handleDelete = async (item) => {
     if (!isAdmin) return;
     if (confirm(`Delete income entry for "${item.title}"?`)) {
-      if (item.isVargani) {
-        liveDeleteVargani(item.raw_id);
-      } else {
-        liveDeleteJama(item.id);
+      try {
+        if (item.isVargani) {
+          await deleteRecord('vargani', item.raw_id);
+          onUpdate?.({ table: 'vargani', eventType: 'DELETE', id: item.raw_id });
+        } else {
+          await deleteRecord('jama', item.id);
+          onUpdate?.({ table: 'jama', eventType: 'DELETE', id: item.id });
+        }
+      } catch (error) {
+        alert(`Could not delete the income entry: ${error.message}`);
       }
-      onUpdate();
     }
   };
 
@@ -563,8 +566,8 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate }) {
                 />
               </div>
 
-              <button type="submit" className="btn btn-success" style={{ marginTop: 14, width: '100%' }}>
-                {editItem ? 'Update Income Entry' : 'Save Income Entry'}
+              <button type="submit" className="btn btn-success" disabled={isSaving} style={{ marginTop: 14, width: '100%', opacity: isSaving ? 0.7 : 1 }}>
+                {isSaving ? 'Saving to Supabase…' : editItem ? 'Update Income Entry' : 'Save Income Entry'}
               </button>
             </form>
           </div>

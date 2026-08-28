@@ -1,10 +1,38 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { History, X } from 'lucide-react';
-import { db } from '../services/db';
+import { fetchMemberHistory } from '../services/supabase';
 
 export default function MemberHistoryModal({ member, onClose }) {
+  const [history, setHistory] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
+
+  useEffect(() => {
+    if (!member?.id) {
+      setHistory([]);
+      return undefined;
+    }
+
+    let isCurrent = true;
+    setIsLoading(true);
+    setLoadError('');
+    fetchMemberHistory(member.id)
+      .then(result => {
+        if (isCurrent) setHistory(result.yearlyTotals || []);
+      })
+      .catch(error => {
+        if (isCurrent) setLoadError(error.message);
+      })
+      .finally(() => {
+        if (isCurrent) setIsLoading(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [member?.id]);
+
   if (!member) return null;
-  const history = db.getMemberHistory(member.id);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -20,7 +48,15 @@ export default function MemberHistoryModal({ member, onClose }) {
           </button>
         </div>
 
-        {history.length === 0 ? (
+        {isLoading ? (
+          <p style={{ fontSize: 13, color: '#64748B', padding: '20px 0', textAlign: 'center' }}>
+            Loading donation history from Supabase…
+          </p>
+        ) : loadError ? (
+          <p style={{ fontSize: 13, color: '#B91C1C', padding: '20px 0', textAlign: 'center' }}>
+            Could not load donation history: {loadError}
+          </p>
+        ) : history.length === 0 ? (
           <p style={{ fontSize: 13, color: '#757575', padding: '20px 0', textAlign: 'center' }}>
             No past donation history found.
           </p>

@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { Plus, Search, Calendar, Clock, Sun, Moon, Edit, Trash2, X, Flame, Languages, Copy, Check } from 'lucide-react';
-import { db } from '../services/db';
 import { transliterateText } from '../utils/marathiTransliterate';
-import { liveAddAarti, liveUpdateAarti, liveDeleteAarti } from '../services/supabase';
+import { createRecord, deleteRecord, updateRecord } from '../services/supabase';
 
-export default function AartiModule({ isAdmin, activeYear, onUpdate }) {
+export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }) {
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Form State
   const [dayTitle, setDayTitle] = useState('Day 1 (Sthapana)');
@@ -19,7 +19,8 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate }) {
   const [eveningHost, setEveningHost] = useState('');
   const [note, setNote] = useState('');
 
-  const aartiList = db.getAarti(activeYear);
+  const aartiList = (Array.isArray(data.aarti) ? data.aarti : [])
+    .filter(record => record?.year === activeYear);
 
   const filtered = aartiList.filter(a =>
     a.day_title.toLowerCase().includes(search.toLowerCase()) ||
@@ -51,25 +52,16 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate }) {
     setShowModal(true);
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     if (!dayTitle.trim()) {
       alert('Day title is required!');
       return;
     }
 
-    if (editItem) {
-      liveUpdateAarti(editItem.id, {
-        day_title: dayTitle.trim(),
-        date,
-        morning_time: morningTime,
-        morning_host: morningHost.trim(),
-        evening_time: eveningTime,
-        evening_host: eveningHost.trim(),
-        note: note.trim()
-      });
-    } else {
-      liveAddAarti({
+    setIsSaving(true);
+    try {
+      const payload = {
         year: activeYear,
         day_title: dayTitle.trim(),
         date,
@@ -78,18 +70,28 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate }) {
         evening_time: eveningTime,
         evening_host: eveningHost.trim(),
         note: note.trim()
-      });
+      };
+      const record = editItem
+        ? await updateRecord('aarti', editItem.id, payload)
+        : await createRecord('aarti', payload);
+      onUpdate?.({ table: 'aarti', eventType: 'UPSERT', record });
+      setShowModal(false);
+    } catch (error) {
+      alert(`Could not save the Aarti schedule: ${error.message}`);
+    } finally {
+      setIsSaving(false);
     }
-
-    setShowModal(false);
-    onUpdate();
   };
 
-  const handleDelete = (id, title) => {
+  const handleDelete = async (id, title) => {
     if (!isAdmin) return;
     if (confirm(`Delete Aarti schedule for "${title}"?`)) {
-      liveDeleteAarti(id);
-      onUpdate();
+      try {
+        await deleteRecord('aarti', id);
+        onUpdate?.({ table: 'aarti', eventType: 'DELETE', id });
+      } catch (error) {
+        alert(`Could not delete the Aarti schedule: ${error.message}`);
+      }
     }
   };
 
@@ -421,8 +423,8 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate }) {
                 />
               </div>
 
-              <button type="submit" className="btn btn-primary" style={{ marginTop: 14, width: '100%' }}>
-                {editItem ? 'Update Aarti Schedule' : 'Save Aarti Schedule'}
+              <button type="submit" className="btn btn-primary" disabled={isSaving} style={{ marginTop: 14, width: '100%', opacity: isSaving ? 0.7 : 1 }}>
+                {isSaving ? 'Saving to Supabase…' : editItem ? 'Update Aarti Schedule' : 'Save Aarti Schedule'}
               </button>
             </form>
           </div>

@@ -7,12 +7,6 @@ export default function PWAInstallBanner() {
   const [showGuideModal, setShowGuideModal] = useState(false);
 
   useEffect(() => {
-    // Check if user previously dismissed
-    const dismissed = localStorage.getItem('rajmudra_pwa_dismissed');
-    if (dismissed === 'true') {
-      setShowBanner(false);
-    }
-
     const handleBeforeInstall = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -37,7 +31,6 @@ export default function PWAInstallBanner() {
   };
 
   const handleDismiss = () => {
-    localStorage.setItem('rajmudra_pwa_dismissed', 'true');
     setShowBanner(false);
   };
 

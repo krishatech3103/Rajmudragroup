@@ -1,38 +1,48 @@
 # 🚩 राजमुद्रा गणेश उत्सव मंडळ (Rajmudra React PWA App)
 
-Offline-First & Hybrid Accounts, Member Vargani, Jama-Kharch & PDF Reports Manager built with React, Vite, PWA, and Supabase.
+Supabase-backed accounts, member donations, income/expenses, Aarti schedules, bank FD records, and PDF reports built with React, Vite, and a PWA shell.
 
----
+## Key features
 
-## 🌟 Key Features
+1. **Supabase is the source of truth**
 
-1. 🗄️ **Offline Master & Hybrid Cloud Sync:**
-   - 100% Offline operation using browser storage.
-   - **JSON Export / Import Backup:** Permanent offline backup files you control.
-   - **Supabase Cloud Sync:** Optional real-time sync between Admin and Viewer.
+   Ledger records and shared settings are read from and written to Supabase. The browser does not keep an offline ledger copy or replay browser-stored records back to the database.
 
-2. 🔐 **Dual PIN Security:**
-   - **Admin Mode (Default PIN: `1234`):** Full CRUD, Settings, Backup Export/Import.
-   - **Viewer Mode (Default PIN: `0000`):** Read-only view for committee members.
+2. **Realtime multi-device updates**
 
-3. 💬 **Instant WhatsApp Receipt:**
-   - One-tap WhatsApp receipt generator (`wa.me`) sending formatted Marathi receipt directly to member's phone.
+   Supabase Realtime notifies connected devices of changes. The app refreshes affected data instead of polling every few seconds.
 
-4. 📊 **PDF Balance Sheet Reports:**
-   - Generates official A4 PDF financial reports ready for download, printing, or WhatsApp sharing.
+3. **Safe PWA asset caching**
 
-5. 📱 **Android PWA Support:**
-   - Tap **"Add to Home Screen"** in Android Chrome to install as a full-screen app with icon and splash screen.
+   The service worker caches only same-origin static application assets. Supabase and all cross-origin API requests always use the network, so an old cached response cannot restore a deleted ledger entry.
 
----
+4. **Receipts and reports**
 
-## 🚀 How to Run Locally
+   Generate WhatsApp receipts and downloadable PDF financial reports from the current Supabase data.
+
+## Supabase setup
+
+1. Create a Supabase project and run [supabase_schema.sql](./supabase_schema.sql) in the SQL Editor.
+
+   The migration is rerunnable and preserves existing ledger rows. It adds database-generated IDs, `updated_at` timestamps, fiscal-year indexes, `app_settings`, and Realtime publication membership for all ledger/settings tables.
+
+2. Configure the client environment:
+
+   ```bash
+   VITE_SUPABASE_URL=https://your-project.supabase.co
+   VITE_SUPABASE_ANON_KEY=your-anon-key
+   ```
+
+3. For an existing installation, make sure all records that must be retained have reached Supabase before deploying the Supabase-only frontend. Do not automatically import old browser backups after the rollout; they may contain rows deleted by another device.
+
+4. The compatibility RLS policies in the schema permit anonymous access because the current app has not yet adopted Supabase Auth. Replace them with authenticated, organization-scoped policies before a public production deployment. Never store PINs, credentials, or other secrets in `app_settings`.
+
+## Run locally
 
 ```bash
 cd /home/sandip.pujari@domain.chitaledairy.co.in/Desktop/Sp/Pratice/rajmudra-app
-
-# 1. Start Dev Server
+npm install
 npm run dev
 ```
 
-Open `http://localhost:3000` in your browser or phone!
+Open the local URL printed by Vite in your browser or phone.

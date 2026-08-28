@@ -1,63 +1,81 @@
 import React, { useState } from 'react';
-import { Calendar, Key, Download, Upload, Eye, EyeOff } from 'lucide-react';
-import { db } from '../services/db';
+import { AlertTriangle, Calendar, Download, ShieldCheck, Upload } from 'lucide-react';
+import { fetchExportData, fetchSettings, importData, saveSettings } from '../services/supabase';
+import { validateAndSanitizeBackupData } from '../utils/security';
 
-export default function SettingsModal({ onClose, onUpdate }) {
-  const settings = db.getSettings();
-
-  const [activeYear, setActiveYear] = useState(settings.active_year);
-  const [adminPin, setAdminPin] = useState('');
-  const [viewerPin, setViewerPin] = useState('');
-  const [showAdminPin, setShowAdminPin] = useState(false);
-  const [showViewerPin, setShowViewerPin] = useState(false);
+export default function SettingsModal({ settings = {}, onClose, onSettingsChange, onUpdate }) {
+  const [activeYear, setActiveYear] = useState(settings.active_year || '2026-27');
+  const [isSavingYear, setIsSavingYear] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   const years = ['2024-25', '2025-26', '2026-27', '2027-28', '2028-29'];
   if (!years.includes(activeYear)) years.push(activeYear);
 
-  const handleSaveYear = (y) => {
-    db.setSetting('active_year', y);
-    setActiveYear(y);
-    onUpdate();
-    alert(`Active year changed to ${y}`);
-  };
-
-  const handleSavePins = (e) => {
-    e.preventDefault();
-    let updated = false;
-    if (adminPin.trim()) { db.setSetting('admin_pin', adminPin.trim()); updated = true; }
-    if (viewerPin.trim()) { db.setSetting('viewer_pin', viewerPin.trim()); updated = true; }
-    if (updated) {
-      alert('Security PIN updated successfully!');
-      setAdminPin('');
-      setViewerPin('');
-    } else {
-      alert('No changes made. Current PINs remain active.');
+  const handleSaveYear = async (year) => {
+    setActiveYear(year);
+    setIsSavingYear(true);
+    try {
+      const updatedSettings = await saveSettings({ active_year: year });
+      onSettingsChange?.(updatedSettings);
+      alert(`Active year changed to ${year}`);
+    } catch (error) {
+      alert(`Could not update the active year: ${error.message}`);
+    } finally {
+      setIsSavingYear(false);
     }
   };
 
-  const handleExportJSON = () => {
-    const data = db.exportJSON();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `rajmudra_backup_${activeYear}_${Date.now()}.json`;
-    a.click();
+  const handleExportJSON = async () => {
+    setIsExporting(true);
+    try {
+      const data = await fetchExportData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `rajmudra_supabase_backup_${activeYear}_${Date.now()}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      alert(`Could not export the Supabase backup: ${error.message}`);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
-  const handleImportJSON = (e) => {
-    const file = e.target.files[0];
+  const handleImportJSON = (event) => {
+    const file = event.target.files?.[0];
     if (!file) return;
+
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (loadEvent) => {
       try {
-        const parsed = JSON.parse(event.target.result);
-        db.importJSON(parsed);
-        alert('Backup data imported successfully!');
-        onUpdate();
-        onClose();
-      } catch (err) {
-        alert(`Import Error: ${err.message}`);
+        const rawData = JSON.parse(loadEvent.target.result);
+        const data = validateAndSanitizeBackupData(rawData);
+
+        // Older browser backups may contain PINs and local Supabase credentials.
+        // They are intentionally not imported into the public settings table.
+        if (rawData.settings?.active_year) {
+          data.settings = { active_year: rawData.settings.active_year };
+        }
+
+        if (!confirm('Import this backup into Supabase? This is a manual restore and can intentionally re-add records that were deleted after the backup was created.')) {
+          return;
+        }
+
+        setIsImporting(true);
+        await importData(data);
+        const updatedSettings = await fetchSettings();
+        await onSettingsChange?.(updatedSettings);
+        await onUpdate?.();
+        alert('Backup data was imported into Supabase successfully.');
+        onClose?.();
+      } catch (error) {
+        alert(`Import Error: ${error.message}`);
+      } finally {
+        setIsImporting(false);
+        event.target.value = '';
       }
     };
     reader.readAsText(file);
@@ -65,8 +83,6 @@ export default function SettingsModal({ onClose, onUpdate }) {
 
   return (
     <div style={{ width: '100%', boxSizing: 'border-box' }} className="animate-fade-in">
-
-      {/* Page Banner — same style as other modules */}
       <div style={{
         background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #9333EA 100%)',
         color: '#ffffff',
@@ -90,93 +106,59 @@ export default function SettingsModal({ onClose, onUpdate }) {
         </div>
       </div>
 
-      {/* 1. Active Festival Year */}
       <div className="luxe-card" style={{ marginBottom: 14 }}>
         <h4 style={{ fontSize: 14, fontWeight: 800, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, color: '#FF5722' }}>
-          <Calendar size={18} /> 1. Active Festival Year
+          <Calendar size={18} /> Active Festival Year
         </h4>
         <select
           className="input-field"
           value={activeYear}
-          onChange={e => handleSaveYear(e.target.value)}
+          disabled={isSavingYear}
+          onChange={event => handleSaveYear(event.target.value)}
         >
-          {years.map(y => <option key={y} value={y}>{y}</option>)}
+          {years.sort().map(year => <option key={year} value={year}>{year}</option>)}
         </select>
       </div>
 
-      {/* 2. Security PINs */}
-      <div className="luxe-card" style={{ marginBottom: 14 }}>
-        <h4 style={{ fontSize: 14, fontWeight: 800, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, color: '#FF5722' }}>
-          <Key size={18} /> 2. Security PIN Control
+      <div className="luxe-card" style={{ marginBottom: 14, background: '#FFFBEB', border: '1px solid #FDE68A' }}>
+        <h4 style={{ fontSize: 14, fontWeight: 800, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, color: '#92400E' }}>
+          <ShieldCheck size={18} /> Access-control note
         </h4>
-        <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, marginBottom: 14 }}>
-          Leave blank to keep current PINs unchanged.
+        <p style={{ fontSize: 12, color: '#92400E', fontWeight: 600, margin: 0, lineHeight: 1.5 }}>
+          This Supabase-only version does not save PINs in the database or browser. Use Supabase Auth and restrictive RLS policies before exposing the app publicly.
         </p>
-
-        <form onSubmit={handleSavePins}>
-          <div className="input-group">
-            <label className="input-label">Admin Security Key (Full Access)</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type={showAdminPin ? 'text' : 'password'}
-                className="input-field"
-                style={{ paddingRight: 46 }}
-                value={adminPin}
-                onChange={e => setAdminPin(e.target.value)}
-                placeholder="Leave blank to keep current PIN"
-              />
-              <button type="button" onClick={() => setShowAdminPin(!showAdminPin)}
-                style={{ position: 'absolute', right: 14, top: 14, background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}>
-                {showAdminPin ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-          </div>
-
-          <div className="input-group">
-            <label className="input-label">Viewer Key (Read-Only Access)</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type={showViewerPin ? 'text' : 'password'}
-                className="input-field"
-                style={{ paddingRight: 46 }}
-                value={viewerPin}
-                onChange={e => setViewerPin(e.target.value)}
-                placeholder="Leave blank to keep current PIN"
-              />
-              <button type="button" onClick={() => setShowViewerPin(!showViewerPin)}
-                style={{ position: 'absolute', right: 14, top: 14, background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}>
-                {showViewerPin ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-          </div>
-
-          <button type="submit" className="btn btn-secondary" style={{ padding: '10px 14px', fontSize: 13, borderRadius: 12 }}>
-            Update Security PINs
-          </button>
-        </form>
       </div>
 
-      {/* 3. Year-End Backup */}
       <div className="luxe-card" style={{ marginBottom: 14 }}>
         <h4 style={{ fontSize: 14, fontWeight: 800, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, color: '#059669' }}>
-          <Download size={18} /> 3. Year-End Data Backup
+          <Download size={18} /> Supabase Data Backup
         </h4>
         <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, marginBottom: 12 }}>
-          Export all data at the end of the festival year. Import next year to restore records.
+          Export reads the current server data. Import is an explicit server-side merge; it never writes to browser storage.
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <button className="btn btn-success" onClick={handleExportJSON}
-            style={{ padding: 12, fontSize: 13, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            <Download size={18} /> Export JSON Backup
+          <button
+            className="btn btn-success"
+            onClick={handleExportJSON}
+            disabled={isExporting || isImporting}
+            style={{ padding: 12, fontSize: 13, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: isExporting ? 0.7 : 1 }}
+          >
+            <Download size={18} /> {isExporting ? 'Exporting from Supabase…' : 'Export JSON Backup'}
           </button>
-          <label className="btn btn-secondary"
-            style={{ padding: 12, fontSize: 13, borderRadius: 14, cursor: 'pointer', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            <Upload size={18} /> Import JSON Backup
-            <input type="file" accept=".json" onChange={handleImportJSON} style={{ display: 'none' }} />
+          <label
+            className="btn btn-secondary"
+            style={{ padding: 12, fontSize: 13, borderRadius: 14, cursor: isImporting ? 'not-allowed' : 'pointer', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: isImporting ? 0.7 : 1 }}
+          >
+            <Upload size={18} /> {isImporting ? 'Importing to Supabase…' : 'Import JSON Backup'}
+            <input type="file" accept=".json,application/json" onChange={handleImportJSON} disabled={isImporting || isExporting} style={{ display: 'none' }} />
           </label>
         </div>
       </div>
 
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, color: '#B45309', padding: '0 4px' }}>
+        <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+        A backup is a point-in-time copy. Import it only when you deliberately want to restore its records.
+      </div>
     </div>
   );
 }

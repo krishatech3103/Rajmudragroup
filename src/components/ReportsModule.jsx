@@ -1,20 +1,27 @@
 import React, { useState } from 'react';
 import { Download, CheckCircle2, Clock, BarChart2 } from 'lucide-react';
-import { db } from '../services/db';
 import { generatePDFReport } from '../utils/pdf';
+import { calculateSummary, getKharchByCategory } from '../utils/ledger';
 
-export default function ReportsModule({ activeYear }) {
+export default function ReportsModule({ activeYear, data = {} }) {
   const [subTab, setSubTab] = useState('financials');
   const [memberFilter, setMemberFilter] = useState('paid');
+  const ledgerData = data || {};
 
-  const summary = db.getSummary(activeYear);
-  const kharchCats = db.getKharchByCategory(activeYear);
-  const members = db.getMembers();
-  const varganiList = db.getVargani(activeYear);
+  const summary = calculateSummary(activeYear, ledgerData);
+  const kharchCats = getKharchByCategory(activeYear, ledgerData.kharch);
+  const members = Array.isArray(ledgerData.members) ? ledgerData.members : [];
+  const varganiList = (Array.isArray(ledgerData.vargani) ? ledgerData.vargani : []).filter(vargani => !activeYear || vargani?.year === activeYear);
 
-  const paidMemberIds = [...new Set(varganiList.map(v => v.member_id))];
-  const paidMembers = members.filter(m => paidMemberIds.includes(m.id));
-  const pendingMembers = members.filter(m => !paidMemberIds.includes(m.id));
+  const paidMemberIds = new Set(
+    varganiList
+      .filter(vargani => (vargani?.status || 'paid') === 'paid')
+      .map(vargani => vargani.member_id)
+      .filter(memberId => memberId !== undefined && memberId !== null)
+      .map(memberId => String(memberId))
+  );
+  const paidMembers = members.filter(member => paidMemberIds.has(String(member.id)));
+  const pendingMembers = members.filter(member => !paidMemberIds.has(String(member.id)));
 
   const fmt = (v) => `Rs. ${Number(v).toLocaleString('en-IN')}`;
 
@@ -45,7 +52,7 @@ export default function ReportsModule({ activeYear }) {
         </div>
 
         <button
-          onClick={() => generatePDFReport(activeYear)}
+          onClick={() => generatePDFReport(activeYear, ledgerData)}
           className="btn btn-gold"
           style={{
             flexShrink: 0,

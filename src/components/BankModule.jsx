@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { Landmark, Plus, Search, Edit, Trash2, X, Percent, CreditCard, Lock, Languages, RefreshCw, Calendar, AlertTriangle, Receipt } from 'lucide-react';
-import { db } from '../services/db';
 import { transliterateText } from '../utils/marathiTransliterate';
-import { liveAddBankFD, liveUpdateBankFD, liveDeleteBankFD } from '../services/supabase';
+import { createRecord, deleteRecord, updateRecord } from '../services/supabase';
+import { calculateBankFDSummary, deriveYearFromDate } from '../utils/ledger';
 
 const YEARS = ['2026-27', '2025-26', '2024-25', '2027-28', '2023-24'];
 
-export default function BankModule({ isAdmin, activeYear, onUpdate }) {
+export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} }) {
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState('All');
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Form State
   const [title, setTitle] = useState('');
@@ -24,8 +25,8 @@ export default function BankModule({ isAdmin, activeYear, onUpdate }) {
   const [expiryDate, setExpiryDate] = useState('');
   const [note, setNote] = useState('');
 
-  const fdList = db.getBankFD();
-  const fdSummary = db.getBankFDSummary();
+  const fdList = Array.isArray(data.bank_fd) ? data.bank_fd : [];
+  const fdSummary = calculateBankFDSummary(fdList);
 
   const filtered = fdList.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -37,7 +38,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate }) {
 
   const handleDateChange = (dateVal) => {
     setDate(dateVal);
-    const derived = db.deriveYearFromDate(dateVal);
+    const derived = deriveYearFromDate(dateVal, activeYear);
     setRecordYear(derived);
   };
 
@@ -69,7 +70,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate }) {
       setExpectedReturns('');
       setBankName('Mandal Bank FD Account');
       setDate(today);
-      setRecordYear(db.deriveYearFromDate(today));
+      setRecordYear(deriveYearFromDate(today, activeYear));
       // Default expiry date 1 year from now
       const nextYear = new Date();
       nextYear.setFullYear(nextYear.getFullYear() + 1);
@@ -90,7 +91,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate }) {
     }
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     if (!title.trim() || !amount) {
       alert('Title and amount are required!');
@@ -106,35 +107,69 @@ export default function BankModule({ isAdmin, activeYear, onUpdate }) {
     const payload = {
       title: title.trim(),
       type,
-      year: recordYear || db.deriveYearFromDate(date),
+      year: recordYear || deriveYearFromDate(date, activeYear),
       amount: numAmt,
       interest_rate: Number(interestRate) || 0,
       expected_returns: Number(expectedReturns) || numAmt,
       bank_name: bankName.trim(),
       date,
-      expiry_date: expiryDate,
+      expiry_date: expiryDate || null,
       note: note.trim()
     };
 
-    if (editItem) {
-      liveUpdateBankFD(editItem.id, payload);
-    } else {
-      liveAddBankFD(payload);
-    }
+    setIsSaving(true);
+    try {
+      const record = editItem
+        ? await updateRecord('bank_fd', editItem.id, payload)
+        : await createRecord('bank_fd', payload);
+      onUpdate?.({ table: 'bank_fd', eventType: 'UPSERT', record });
 
-    setShowModal(false);
-    onUpdate();
+      // Keep the existing FD-expense feature, but make both server writes
+      // explicit and awaited. A failed companion expense rolls back the just
+      // created Bank FD row so an incomplete transaction is not left behind.
+      if (!editItem && type === 'fd_expense') {
+        try {
+          const expenseRecord = await createRecord('kharch', {
+            title: `[FD Withdrawal Expense] ${payload.title}`,
+            category: 'Miscellaneous Expenses',
+            year: payload.year,
+            amount: payload.amount,
+            date: payload.date,
+            note: `Auto-recorded from Bank FD withdrawal for expense: ${payload.note || ''}`.trim()
+          });
+          onUpdate?.({ table: 'kharch', eventType: 'UPSERT', record: expenseRecord });
+        } catch (expenseError) {
+          try {
+            await deleteRecord('bank_fd', record.id);
+            onUpdate?.({ table: 'bank_fd', eventType: 'DELETE', id: record.id });
+          } catch (rollbackError) {
+            console.error('Could not roll back incomplete FD expense:', rollbackError);
+          }
+          throw new Error(`The companion expense could not be saved, so the bank entry was rolled back. ${expenseError.message}`);
+        }
+      }
+
+      setShowModal(false);
+    } catch (error) {
+      alert(`Could not save the bank entry: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleDelete = (id, title, isLocked) => {
+  const handleDelete = async (id, title, isLocked) => {
     if (!isAdmin) return;
     if (isLocked) {
       alert('Official Audit Record cannot be deleted!');
       return;
     }
     if (confirm(`Delete bank entry "${title}"?`)) {
-      liveDeleteBankFD(id);
-      onUpdate();
+      try {
+        await deleteRecord('bank_fd', id);
+        onUpdate?.({ table: 'bank_fd', eventType: 'DELETE', id });
+      } catch (error) {
+        alert(`Could not delete the bank entry: ${error.message}`);
+      }
     }
   };
 
@@ -357,7 +392,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate }) {
                 <select
                   className="input-field"
                   value={type}
-                  onChange={e => handleTypeChange(e.target.value)}
+                  onChange={e => setType(e.target.value)}
                   disabled={!!editItem}
                 >
                   <option value="deposit">FD Deposit / New FD</option>
@@ -499,8 +534,8 @@ export default function BankModule({ isAdmin, activeYear, onUpdate }) {
                 </div>
               )}
 
-              <button type="submit" className="btn btn-success" style={{ marginTop: 14, width: '100%', background: '#047857', borderColor: '#047857' }}>
-                {editItem ? 'Update Bank Entry' : 'Save Bank Entry'}
+              <button type="submit" className="btn btn-success" disabled={isSaving} style={{ marginTop: 14, width: '100%', background: '#047857', borderColor: '#047857', opacity: isSaving ? 0.7 : 1 }}>
+                {isSaving ? 'Saving to Supabase…' : editItem ? 'Update Bank Entry' : 'Save Bank Entry'}
               </button>
             </form>
           </div>

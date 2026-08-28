@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
 import { Plus, Search, MessageSquare, Edit, Trash2, X, HeartHandshake, Languages, ChevronDown, ChevronUp, History, CheckCircle2, Clock, CreditCard, Banknote, Tag } from 'lucide-react';
-import { db } from '../services/db';
 import { generateWhatsAppReceipt } from '../utils/whatsapp';
 import { transliterateText } from '../utils/marathiTransliterate';
-import { liveAddVargani, liveUpdateVargani, liveDeleteVargani } from '../services/supabase';
+import { createRecord, deleteRecord, findOrCreateMember, updateRecord } from '../services/supabase';
 import MemberHistoryModal from './MemberHistoryModal';
 
-export default function DonationsModule({ isAdmin, activeYear, onUpdate, initialFilter = 'all' }) {
+export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = {}, initialFilter = 'all' }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState(initialFilter); // 'all', 'paid', 'pending'
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [selectedMemberHistory, setSelectedMemberHistory] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Form State
   const [prefix, setPrefix] = useState('श्री'); // 'श्री', 'सौ.', 'मे.', 'कु.'
@@ -25,8 +25,9 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
   const [receiptNo, setReceiptNo] = useState('');
   const [note, setNote] = useState('');
 
-  const members = db.getMembers(activeYear);
-  const varganiList = db.getVargani(activeYear);
+  const members = Array.isArray(data.members) ? data.members : [];
+  const varganiList = (Array.isArray(data.vargani) ? data.vargani : [])
+    .filter(record => record?.year === activeYear);
   const totalVargani = varganiList.reduce((sum, v) => sum + Number(v.amount), 0);
 
   const filtered = varganiList.filter(v => {
@@ -72,7 +73,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
     setMemberName(converted);
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     if (!memberName.trim() || !amount) {
       alert('Member name and amount are required!');
@@ -85,44 +86,60 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
       return;
     }
 
-    const memberObj = db.upsertMember(memberName, phone);
+    setIsSaving(true);
+    try {
+      const memberObj = await findOrCreateMember(
+        { name: memberName, phone },
+        { knownMembers: members }
+      );
+      const payload = {
+        prefix,
+        member_id: memberObj.id,
+        member_name: memberObj.name,
+        phone: phone.trim() || memberObj.phone,
+        year: activeYear,
+        amount: numAmt,
+        payment_mode: paymentMode,
+        status,
+        date,
+        receipt_no: receiptNo.trim(),
+        note: note.trim()
+      };
 
-    const payload = {
-      prefix,
-      member_id: memberObj.id,
-      member_name: memberObj.name,
-      phone: phone.trim() || memberObj.phone,
-      year: activeYear,
-      amount: numAmt,
-      payment_mode: paymentMode,
-      status,
-      date,
-      receipt_no: receiptNo.trim(),
-      note: note.trim()
-    };
+      const record = editItem
+        ? await updateRecord('vargani', editItem.id, payload)
+        : await createRecord('vargani', payload);
 
-    if (editItem) {
-      liveUpdateVargani(editItem.id, payload);
-    } else {
-      liveAddVargani(payload);
+      onUpdate?.({ table: 'members', eventType: 'UPSERT', record: memberObj });
+      onUpdate?.({ table: 'vargani', eventType: 'UPSERT', record });
+      setShowModal(false);
+    } catch (error) {
+      alert(`Could not save the donation: ${error.message}`);
+    } finally {
+      setIsSaving(false);
     }
-
-    setShowModal(false);
-    onUpdate();
   };
 
-  const toggleStatus = (item) => {
+  const toggleStatus = async (item) => {
     if (!isAdmin) return;
     const nextStatus = (item.status || 'paid') === 'paid' ? 'pending' : 'paid';
-    liveUpdateVargani(item.id, { status: nextStatus });
-    onUpdate();
+    try {
+      const record = await updateRecord('vargani', item.id, { status: nextStatus });
+      onUpdate?.({ table: 'vargani', eventType: 'UPSERT', record });
+    } catch (error) {
+      alert(`Could not update the donation status: ${error.message}`);
+    }
   };
 
-  const handleDelete = (id, name) => {
+  const handleDelete = async (id, name) => {
     if (!isAdmin) return;
     if (confirm(`Are you sure you want to delete donation record for ${name}?`)) {
-      liveDeleteVargani(id);
-      onUpdate();
+      try {
+        await deleteRecord('vargani', id);
+        onUpdate?.({ table: 'vargani', eventType: 'DELETE', id });
+      } catch (error) {
+        alert(`Could not delete the donation: ${error.message}`);
+      }
     }
   };
 
@@ -583,8 +600,8 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, initial
                 />
               </div>
 
-              <button type="submit" className="btn btn-primary" style={{ marginTop: 14, width: '100%' }}>
-                {editItem ? 'Update Donation' : 'Save & Issue Receipt'}
+              <button type="submit" className="btn btn-primary" disabled={isSaving} style={{ marginTop: 14, width: '100%', opacity: isSaving ? 0.7 : 1 }}>
+                {isSaving ? 'Saving to Supabase…' : editItem ? 'Update Donation' : 'Save & Issue Receipt'}
               </button>
             </form>
           </div>
