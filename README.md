@@ -36,6 +36,8 @@ Supabase-backed accounts, member donations, income/expenses, Aarti schedules, ba
 
 3. For an existing installation, make sure all records that must be retained have reached Supabase before deploying the Supabase-only frontend. Do not automatically import old browser backups after the rollout; they may contain rows deleted by another device.
 
+4. Before deploying the Cash/UPI expense feature to an existing database, run [supabase_expense_payment_mode.sql](./supabase_expense_payment_mode.sql). It adds `kharch.payment_mode` safely and marks older expense rows as Cash.
+
 ## Secure login: admin and view-only users
 
 The app now uses a username-and-password screen backed by Supabase Auth, not a browser PIN. Supabase stores password hashes and the database enforces permissions:

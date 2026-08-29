@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, Search, Edit, Trash2, X, ArrowUpCircle, Languages, Lock, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, X, ArrowUpCircle, Languages, Lock, ChevronDown, ChevronUp, CreditCard, Banknote } from 'lucide-react';
 import { transliterateText } from '../utils/marathiTransliterate';
 import { createRecord, deleteRecord, updateRecord } from '../services/supabase';
+import { calculatePaymentModeTotals } from '../utils/ledger';
 
 const EXPENSE_CATEGORIES = [
   'All',
@@ -31,11 +32,13 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate, data = {
   const [category, setCategory] = useState('Mandap & Decoration');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [paymentMode, setPaymentMode] = useState('Cash');
   const [note, setNote] = useState('');
 
   const kharchList = (Array.isArray(data.kharch) ? data.kharch : [])
     .filter(record => record?.year === activeYear);
   const totalKharch = kharchList.reduce((sum, k) => sum + Number(k.amount), 0);
+  const paidByMode = calculatePaymentModeTotals(kharchList);
 
   const filtered = kharchList.filter(k => {
     const matchesSearch = k.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -57,6 +60,7 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate, data = {
       setCategory(item.category);
       setAmount(item.amount);
       setDate(item.date);
+      setPaymentMode(item.payment_mode || 'Cash');
       setNote(item.note || '');
     } else {
       setEditItem(null);
@@ -64,6 +68,7 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate, data = {
       setCategory('Mandap & Decoration');
       setAmount('');
       setDate(new Date().toISOString().split('T')[0]);
+      setPaymentMode('Cash');
       setNote('');
     }
     setShowModal(true);
@@ -83,7 +88,7 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate, data = {
 
     setIsSaving(true);
     try {
-      const payload = { title: title.trim(), category, year: activeYear, amount: numAmt, date, note: note.trim() };
+      const payload = { title: title.trim(), category, year: activeYear, amount: numAmt, date, payment_mode: paymentMode, note: note.trim() };
       const record = editItem
         ? await updateRecord('kharch', editItem.id, payload)
         : await createRecord('kharch', payload);
@@ -148,6 +153,17 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate, data = {
           <span style={{ fontSize: 11, background: 'rgba(255, 255, 255, 0.25)', padding: '3px 10px', borderRadius: 12, fontWeight: 800, marginTop: 2, display: 'inline-block' }}>
             {kharchList.length} Entries
           </span>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+        <div className="luxe-card" style={{ padding: '11px 13px', border: '1px solid #FECACA' }}>
+          <span style={{ color: '#991B1B', fontSize: 11, fontWeight: 800, display: 'block' }}>CASH PAID</span>
+          <strong style={{ color: '#DC2626', fontSize: 17 }}>Rs. {paidByMode.cash.toLocaleString('en-IN')}</strong>
+        </div>
+        <div className="luxe-card" style={{ padding: '11px 13px', border: '1px solid #BFDBFE' }}>
+          <span style={{ color: '#1D4ED8', fontSize: 11, fontWeight: 800, display: 'block' }}>UPI / ONLINE PAID</span>
+          <strong style={{ color: '#2563EB', fontSize: 17 }}>Rs. {paidByMode.online.toLocaleString('en-IN')}</strong>
         </div>
       </div>
 
@@ -231,7 +247,7 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate, data = {
                       )}
                     </div>
                     <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, margin: '2px 0 0 0' }}>
-                      {k.category} • {new Date(k.date).toLocaleDateString('en-IN')} {k.note ? `• ${k.note}` : ''}
+                      {k.category} • {new Date(k.date).toLocaleDateString('en-IN')} • {k.payment_mode || 'Cash'} {k.note ? `• ${k.note}` : ''}
                     </p>
                   </div>
 
@@ -349,6 +365,18 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate, data = {
                   placeholder="e.g. 12000"
                   required
                 />
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Payment Mode *</label>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button type="button" onClick={() => setPaymentMode('Cash')} style={{ flex: 1, padding: '10px', borderRadius: 12, border: paymentMode === 'Cash' ? '2px solid #DC2626' : '1px solid #CBD5E1', background: paymentMode === 'Cash' ? '#FEF2F2' : '#ffffff', color: paymentMode === 'Cash' ? '#DC2626' : '#64748B', fontWeight: 800, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <Banknote size={16} /> Cash
+                  </button>
+                  <button type="button" onClick={() => setPaymentMode('UPI')} style={{ flex: 1, padding: '10px', borderRadius: 12, border: paymentMode === 'UPI' ? '2px solid #2563EB' : '1px solid #CBD5E1', background: paymentMode === 'UPI' ? '#EFF6FF' : '#ffffff', color: paymentMode === 'UPI' ? '#2563EB' : '#64748B', fontWeight: 800, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <CreditCard size={16} /> UPI / Online
+                  </button>
+                </div>
               </div>
 
               <div className="input-group">

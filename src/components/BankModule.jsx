@@ -135,6 +135,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
             year: payload.year,
             amount: payload.amount,
             date: payload.date,
+            payment_mode: 'Online',
             note: `Auto-recorded from Bank FD withdrawal for expense: ${payload.note || ''}`.trim()
           });
           onUpdate?.({ table: 'kharch', eventType: 'UPSERT', record: expenseRecord });
