@@ -20,6 +20,17 @@ const recordsForYear = (records, year) => {
   return year ? list.filter((record) => record?.year === year) : list;
 };
 
+export const BANK_TRANSFER_TYPES = Object.freeze([
+  'cash_to_upi',
+  'upi_to_cash',
+  'cash_to_bank',
+  'upi_to_bank',
+  'bank_to_cash',
+  'bank_to_upi'
+]);
+
+export const isBankTransferType = (type) => BANK_TRANSFER_TYPES.includes(type);
+
 /**
  * Splits recorded income by payment mode. UPI and Online modes are grouped as
  * digital collections; legacy records with no mode are treated as Cash.
@@ -96,15 +107,17 @@ export function calculateBankFDSummary(bankFd, today = new Date()) {
   asArray(bankFd).forEach((item) => {
     const amount = toAmount(item?.amount);
 
-    if (item?.type === 'deposit' || item?.type === 'renew') {
+    if (item?.type === 'deposit' || item?.type === 'renew' || item?.type === 'cash_to_bank' || item?.type === 'upi_to_bank') {
       totalFD += amount;
-      expectedReturns += toAmount(item.expected_returns);
+      if (item?.type === 'deposit' || item?.type === 'renew') {
+        expectedReturns += toAmount(item.expected_returns);
+      }
     } else if (item?.type === 'interest') {
       totalFD += amount;
       totalInterest += amount;
-    } else if (item?.type === 'withdrawal') {
+    } else if (item?.type === 'withdrawal' || item?.type === 'bank_to_cash' || item?.type === 'bank_to_upi') {
       totalFD -= amount;
-      totalWithdrawals += amount;
+      if (item?.type === 'withdrawal') totalWithdrawals += amount;
     } else if (item?.type === 'fd_expense') {
       totalFD -= amount;
       totalFDExpenses += amount;
@@ -132,6 +145,56 @@ export function calculateBankFDSummary(bankFd, today = new Date()) {
     expired_count: expiredCount,
     entries_count: asArray(bankFd).length
   };
+}
+
+/**
+ * Calculates the amount currently held in Cash and UPI for one festival year.
+ * Transfers move money between funds; they are not income or expenses.
+ */
+export function calculateTreasuryBalances(year, data = {}) {
+  const balances = { cash: 0, online: 0 };
+  const addByPaymentMode = (record, multiplier) => {
+    const amount = toAmount(record?.amount) * multiplier;
+    const mode = String(record?.payment_mode || 'Cash').trim().toLocaleLowerCase();
+    if (mode === 'cash') balances.cash += amount;
+    else balances.online += amount;
+  };
+
+  recordsForYear(data?.vargani, year)
+    .filter(record => (record?.status || 'paid') === 'paid')
+    .forEach(record => addByPaymentMode(record, 1));
+  recordsForYear(data?.jama, year).forEach(record => addByPaymentMode(record, 1));
+  recordsForYear(data?.kharch, year).forEach(record => addByPaymentMode(record, -1));
+
+  recordsForYear(data?.bank_fd, year).forEach(record => {
+    const amount = toAmount(record?.amount);
+    switch (record?.type) {
+      case 'cash_to_upi':
+        balances.cash -= amount;
+        balances.online += amount;
+        break;
+      case 'upi_to_cash':
+        balances.online -= amount;
+        balances.cash += amount;
+        break;
+      case 'cash_to_bank':
+        balances.cash -= amount;
+        break;
+      case 'upi_to_bank':
+        balances.online -= amount;
+        break;
+      case 'bank_to_cash':
+        balances.cash += amount;
+        break;
+      case 'bank_to_upi':
+        balances.online += amount;
+        break;
+      default:
+        break;
+    }
+  });
+
+  return balances;
 }
 
 /**

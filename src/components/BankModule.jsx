@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Landmark, Plus, Search, Edit, Trash2, X, Percent, CreditCard, Lock, Languages, RefreshCw, Calendar, AlertTriangle, Receipt } from 'lucide-react';
+import { Landmark, Plus, Search, Edit, Trash2, X, Percent, CreditCard, Lock, Languages, RefreshCw, Calendar, AlertTriangle, Receipt, ArrowLeftRight, Download, Banknote } from 'lucide-react';
 import { transliterateText } from '../utils/marathiTransliterate';
 import { createRecord, deleteRecord, updateRecord } from '../services/supabase';
-import { calculateBankFDSummary, deriveYearFromDate } from '../utils/ledger';
+import { calculateBankFDSummary, calculateTreasuryBalances, deriveYearFromDate, isBankTransferType } from '../utils/ledger';
+import { generateBankTreasuryPDF } from '../utils/pdf';
 
 const YEARS = ['2026-27', '2025-26', '2024-25', '2027-28', '2023-24'];
 
@@ -27,12 +28,13 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
 
   const fdList = Array.isArray(data.bank_fd) ? data.bank_fd : [];
   const fdSummary = calculateBankFDSummary(fdList);
+  const treasuryBalances = calculateTreasuryBalances(activeYear, data);
 
   const filtered = fdList.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase()) ||
                           (item.bank_name || '').toLowerCase().includes(search.toLowerCase()) ||
                           (item.note || '').toLowerCase().includes(search.toLowerCase());
-    const matchesType = selectedType === 'All' || item.type === selectedType;
+    const matchesType = selectedType === 'All' || (selectedType === 'transfer' ? isBankTransferType(item.type) : item.type === selectedType);
     return matchesSearch && matchesType;
   });
 
@@ -80,6 +82,23 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
     setShowModal(true);
   };
 
+  const openTransferForm = () => {
+    if (!isAdmin) return;
+    const today = new Date().toISOString().split('T')[0];
+    setEditItem(null);
+    setType('cash_to_upi');
+    setTitle('Cash to UPI Transfer');
+    setAmount('');
+    setInterestRate('0');
+    setExpectedReturns('');
+    setBankName('Mandal Treasury');
+    setDate(today);
+    setRecordYear(deriveYearFromDate(today, activeYear));
+    setExpiryDate('');
+    setNote('');
+    setShowModal(true);
+  };
+
   const handleAmountRateChange = (amtVal, rateVal) => {
     setAmount(amtVal);
     setInterestRate(rateVal);
@@ -102,6 +121,21 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
     if (isNaN(numAmt) || numAmt <= 0) {
       alert('Enter a valid amount!');
       return;
+    }
+
+    // Prevent a new transfer from moving more than the currently calculated
+    // fund balance. Historical-year edits remain allowed because this screen
+    // only has the active year's income and expense rows in memory.
+    if (!editItem && recordYear === activeYear && isBankTransferType(type)) {
+      const sourceBalance = type === 'cash_to_upi' || type === 'cash_to_bank'
+        ? treasuryBalances.cash
+        : type === 'upi_to_cash' || type === 'upi_to_bank'
+          ? treasuryBalances.online
+          : fdSummary.current_fd_balance;
+      if (numAmt > sourceBalance) {
+        alert(`Transfer amount is greater than the available source balance (Rs. ${sourceBalance.toLocaleString('en-IN')}).`);
+        return;
+      }
     }
 
     const payload = {
@@ -182,6 +216,12 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
       case 'withdrawal': return { label: 'FD Cash Withdrawal (ठेव रोख काढली)', color: '#DC2626', bg: '#FEF2F2', icon: <Landmark size={18} /> };
       case 'fd_expense': return { label: 'FD Withdrawal for Expense (ठेव मोडून खर्च करणे)', color: '#9333EA', bg: '#F3E8FF', icon: <Receipt size={18} /> };
       case 'charge': return { label: 'Bank Charge / Fee (बँक फी)', color: '#D97706', bg: '#FFFBEB', icon: <CreditCard size={18} /> };
+      case 'cash_to_upi': return { label: 'Transfer: Cash → UPI', color: '#2563EB', bg: '#EFF6FF', icon: <ArrowLeftRight size={18} /> };
+      case 'upi_to_cash': return { label: 'Transfer: UPI → Cash', color: '#2563EB', bg: '#EFF6FF', icon: <ArrowLeftRight size={18} /> };
+      case 'cash_to_bank': return { label: 'Transfer: Cash → Mandal Bank', color: '#047857', bg: '#ECFDF5', icon: <Landmark size={18} /> };
+      case 'upi_to_bank': return { label: 'Transfer: UPI → Mandal Bank', color: '#047857', bg: '#ECFDF5', icon: <Landmark size={18} /> };
+      case 'bank_to_cash': return { label: 'Transfer: Mandal Bank → Cash', color: '#D97706', bg: '#FFFBEB', icon: <ArrowLeftRight size={18} /> };
+      case 'bank_to_upi': return { label: 'Transfer: Mandal Bank → UPI', color: '#D97706', bg: '#FFFBEB', icon: <ArrowLeftRight size={18} /> };
       default: return { label: 'Bank Entry', color: '#475569', bg: '#F8FAFC', icon: <Landmark size={18} /> };
     }
   };
@@ -225,6 +265,24 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
 
       {/* Summary KPI Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 20 }}>
+        <div className="luxe-card" style={{ padding: 16, background: '#FEF2F2', border: '1px solid #FECACA' }}>
+          <span style={{ fontSize: 11, fontWeight: 800, color: '#991B1B', display: 'flex', alignItems: 'center', gap: 6, textTransform: 'uppercase' }}>
+            <Banknote size={14} /> Cash on hand · Year {activeYear}
+          </span>
+          <p style={{ fontSize: 18, fontWeight: 900, color: '#DC2626', margin: '4px 0 0 0' }}>
+            Rs. {treasuryBalances.cash.toLocaleString('en-IN')}
+          </p>
+        </div>
+
+        <div className="luxe-card" style={{ padding: 16, background: '#EFF6FF', border: '1px solid #BFDBFE' }}>
+          <span style={{ fontSize: 11, fontWeight: 800, color: '#1D4ED8', display: 'flex', alignItems: 'center', gap: 6, textTransform: 'uppercase' }}>
+            <CreditCard size={14} /> UPI / Online · Year {activeYear}
+          </span>
+          <p style={{ fontSize: 18, fontWeight: 900, color: '#2563EB', margin: '4px 0 0 0' }}>
+            Rs. {treasuryBalances.online.toLocaleString('en-IN')}
+          </p>
+        </div>
+
         <div className="luxe-card" style={{ padding: 16, background: '#F0FDF4', border: '1px solid #DCFCE7' }}>
           <span style={{ fontSize: 11, fontWeight: 800, color: '#166534', display: 'block', textTransform: 'uppercase' }}>
             Expected Maturity Returns
@@ -248,7 +306,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
 
       {/* Filter Tabs Pills */}
       <div data-disable-page-swipe="true" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 16 }}>
-        {['All', 'deposit', 'renew', 'interest', 'withdrawal', 'fd_expense', 'charge'].map(t => (
+        {['All', 'transfer', 'deposit', 'renew', 'interest', 'withdrawal', 'fd_expense', 'charge'].map(t => (
           <button
             key={t}
             onClick={() => setSelectedType(t)}
@@ -258,13 +316,13 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
               borderColor: selectedType === t ? '#047857' : undefined
             }}
           >
-            {t === 'All' ? 'All Transactions' : t === 'deposit' ? 'FD Deposits' : t === 'renew' ? 'FD Renewals' : t === 'interest' ? 'Interest Earned' : t === 'withdrawal' ? 'Withdrawals' : t === 'fd_expense' ? 'FD Expense' : 'Bank Fees'}
+            {t === 'All' ? 'All Transactions' : t === 'transfer' ? 'Transfers' : t === 'deposit' ? 'FD Deposits' : t === 'renew' ? 'FD Renewals' : t === 'interest' ? 'Interest Earned' : t === 'withdrawal' ? 'Withdrawals' : t === 'fd_expense' ? 'FD Expense' : 'Bank Fees'}
           </button>
         ))}
       </div>
 
       {/* Search & Add Bar */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 1 }}>
           <Search size={18} color="#64748B" style={{ position: 'absolute', left: 16, top: 14 }} />
           <input
@@ -276,6 +334,24 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
             onChange={e => setSearch(e.target.value)}
           />
         </div>
+
+        <button
+          className="btn btn-secondary"
+          onClick={() => generateBankTreasuryPDF(fdList)}
+          style={{ width: 'auto', padding: '0 18px', borderRadius: 16, display: 'flex', alignItems: 'center', gap: 7 }}
+        >
+          <Download size={18} /> All-Time Report
+        </button>
+
+        {isAdmin && (
+          <button
+            className="btn btn-secondary"
+            onClick={openTransferForm}
+            style={{ width: 'auto', padding: '0 18px', borderRadius: 16, display: 'flex', alignItems: 'center', gap: 7 }}
+          >
+            <ArrowLeftRight size={18} /> Transfer
+          </button>
+        )}
 
         {isAdmin && (
           <button
@@ -301,7 +377,8 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {filtered.map(item => {
             const meta = getTypeLabel(item.type);
-            const isNegative = item.type === 'withdrawal' || item.type === 'charge' || item.type === 'fd_expense';
+            const isNegative = item.type === 'withdrawal' || item.type === 'charge' || item.type === 'fd_expense' || item.type === 'bank_to_cash' || item.type === 'bank_to_upi';
+            const isTransfer = isBankTransferType(item.type);
             const isExpired = item.expiry_date && item.expiry_date <= todayStr && (item.type === 'deposit' || item.type === 'renew');
 
             return (
@@ -345,7 +422,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                   <span style={{ fontSize: 17, fontWeight: 900, color: isNegative ? '#DC2626' : '#059669', marginRight: 4 }}>
-                    {isNegative ? '-' : '+'} Rs. {Number(item.amount).toLocaleString('en-IN')}
+                    {isTransfer ? '↔' : isNegative ? '-' : '+'} Rs. {Number(item.amount).toLocaleString('en-IN')}
                   </span>
 
                   {isAdmin && !item.is_locked && (
@@ -396,12 +473,22 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
                   onChange={e => setType(e.target.value)}
                   disabled={!!editItem}
                 >
+                  <optgroup label="Fund Transfers (not income or expense)">
+                    <option value="cash_to_upi">Cash → UPI / Online</option>
+                    <option value="upi_to_cash">UPI / Online → Cash</option>
+                    <option value="cash_to_bank">Cash → Mandal Bank / FD</option>
+                    <option value="upi_to_bank">UPI / Online → Mandal Bank / FD</option>
+                    <option value="bank_to_cash">Mandal Bank / FD → Cash</option>
+                    <option value="bank_to_upi">Mandal Bank / FD → UPI / Online</option>
+                  </optgroup>
+                  <optgroup label="Bank and FD entries">
                   <option value="deposit">FD Deposit / New FD</option>
                   <option value="renew">FD Renew</option>
                   <option value="interest">FD Interest Received</option>
                   <option value="withdrawal">FD Cash Withdrawal</option>
                   <option value="fd_expense">FD Withdrawal for Expense</option>
                   <option value="charge">Bank Charges / Service Fee</option>
+                  </optgroup>
                 </select>
               </div>
 
@@ -532,6 +619,12 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
               {type === 'fd_expense' && (
                 <div style={{ background: '#F3E8FF', border: '1px solid #E9D5FF', padding: 12, borderRadius: 14, marginBottom: 14, fontSize: 12, color: '#6B21A8', fontWeight: 700 }}>
                   💡 This will deduct Rs. {amount || 0} from Bank FD balance and automatically post a corresponding expense entry into the Mandal Expenses ledger!
+                </div>
+              )}
+
+              {isBankTransferType(type) && (
+                <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', padding: 12, borderRadius: 14, marginBottom: 14, fontSize: 12, color: '#1D4ED8', fontWeight: 700 }}>
+                  ↔ This records a fund transfer only. It does not add income or expense. Transfers into Mandal Bank / FD increase the all-time Bank & Treasury balance.
                 </div>
               )}
 

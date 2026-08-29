@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, Search, Calendar, Clock, Sun, Moon, Edit, Trash2, X, Flame, Languages, Copy, Check } from 'lucide-react';
+import { Plus, Search, Calendar, Clock, Sun, Moon, Edit, Trash2, X, Flame, Languages, Copy, Check, Download } from 'lucide-react';
 import { transliterateText } from '../utils/marathiTransliterate';
 import { createRecord, deleteRecord, updateRecord } from '../services/supabase';
+import { generateAartiSchedulePDF } from '../utils/pdf';
 
 export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }) {
   const [search, setSearch] = useState('');
@@ -139,21 +140,30 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }
           </span>
         </div>
 
-        {isAdmin && (
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button
-            className="btn btn-gold"
-            onClick={() => openForm()}
-            style={{
-              padding: '12px 22px',
-              borderRadius: 16,
-              fontSize: 14,
-              fontWeight: 800,
-              boxShadow: '0 8px 20px rgba(255, 215, 0, 0.3)'
-            }}
+            className="btn btn-secondary"
+            onClick={() => generateAartiSchedulePDF(activeYear, aartiList)}
+            style={{ padding: '12px 18px', borderRadius: 16, fontSize: 14, fontWeight: 800 }}
           >
-            <Plus size={18} /> Add Aarti Day
+            <Download size={18} /> One-Page PDF
           </button>
-        )}
+          {isAdmin && (
+            <button
+              className="btn btn-gold"
+              onClick={() => openForm()}
+              style={{
+                padding: '12px 22px',
+                borderRadius: 16,
+                fontSize: 14,
+                fontWeight: 800,
+                boxShadow: '0 8px 20px rgba(255, 215, 0, 0.3)'
+              }}
+            >
+              <Plus size={18} /> Add Aarti Day
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Search Bar */}

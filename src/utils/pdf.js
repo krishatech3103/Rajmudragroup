@@ -1,5 +1,5 @@
 import html2pdf from 'html2pdf.js';
-import { calculateSummary, getKharchByCategory } from './ledger';
+import { calculateBankFDSummary, calculateSummary, getKharchByCategory, isBankTransferType } from './ledger';
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, character => ({
@@ -171,4 +171,113 @@ export function generatePDFReport(year, data = {}) {
   };
 
   html2pdf().set(opt).from(element).save();
+}
+
+const formatDate = (value, locale = 'en-IN') => value
+  ? new Date(value).toLocaleDateString(locale)
+  : '-';
+
+export function generateAartiSchedulePDF(year, records = []) {
+  const schedule = (Array.isArray(records) ? records : [])
+    .filter(record => record?.year === year)
+    .sort((left, right) => String(left.date || '').localeCompare(String(right.date || '')));
+  const element = document.createElement('div');
+  element.style.width = '190mm';
+  element.style.padding = '5mm';
+  element.style.boxSizing = 'border-box';
+  element.style.fontFamily = "'Noto Sans Devanagari', 'Outfit', sans-serif";
+  element.style.color = '#1F2937';
+  element.style.background = '#ffffff';
+
+  element.innerHTML = `
+    <div style="text-align:center; border-bottom:2px solid #D84315; padding-bottom:3mm; margin-bottom:3mm;">
+      <div style="font-size:10px; color:#D84315; font-weight:800;">॥ श्री गणेशाय नमः ॥</div>
+      <div style="font-size:17px; color:#9A2A2A; font-weight:900; margin:1mm 0;">राजमुद्रा गणेशोत्सव मंडळ</div>
+      <div style="font-size:11px; font-weight:800;">आरती वेळापत्रक / Aarti Schedule — Festival Year ${escapeHtml(year)}</div>
+    </div>
+    <table style="width:100%; border-collapse:collapse; font-size:8px; table-layout:fixed;">
+      <thead>
+        <tr style="background:#FFF3E0; color:#9A3412;">
+          <th style="width:12%; padding:5px; border:1px solid #FDBA74;">Date</th>
+          <th style="width:18%; padding:5px; border:1px solid #FDBA74;">Day</th>
+          <th style="width:31%; padding:5px; border:1px solid #FDBA74;">Morning Aarti</th>
+          <th style="width:31%; padding:5px; border:1px solid #FDBA74;">Evening Aarti</th>
+          <th style="width:8%; padding:5px; border:1px solid #FDBA74;">Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${schedule.length ? schedule.map((item, index) => `
+          <tr style="background:${index % 2 ? '#FFFDF8' : '#FFFFFF'};">
+            <td style="padding:5px; border:1px solid #E5E7EB; font-weight:700;">${escapeHtml(formatDate(item.date))}</td>
+            <td style="padding:5px; border:1px solid #E5E7EB; font-weight:800;">${escapeHtml(item.day_title)}</td>
+            <td style="padding:5px; border:1px solid #E5E7EB;"><b>${escapeHtml(item.morning_time || '-')}</b><br>${escapeHtml(item.morning_host || '-')}</td>
+            <td style="padding:5px; border:1px solid #E5E7EB;"><b>${escapeHtml(item.evening_time || '-')}</b><br>${escapeHtml(item.evening_host || '-')}</td>
+            <td style="padding:5px; border:1px solid #E5E7EB; font-size:7px;">${escapeHtml(item.note || '-')}</td>
+          </tr>
+        `).join('') : '<tr><td colspan="5" style="padding:15px; border:1px solid #E5E7EB; text-align:center;">No Aarti schedule entries.</td></tr>'}
+      </tbody>
+    </table>
+    <div style="margin-top:3mm; text-align:center; font-size:7px; color:#6B7280;">Generated ${escapeHtml(formatDate(new Date()))} • Ganpati Bappa Morya</div>
+  `;
+
+  html2pdf().set({
+    margin: [5, 5, 5, 5],
+    filename: `Rajmudra_Aarti_Schedule_${year}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  }).from(element).save();
+}
+
+function bankEntryLabel(type) {
+  const labels = {
+    deposit: 'FD Deposit', renew: 'FD Renewal', interest: 'Interest Received',
+    withdrawal: 'FD Withdrawal', fd_expense: 'FD Expense', charge: 'Bank Charge',
+    cash_to_upi: 'Cash → UPI Transfer', upi_to_cash: 'UPI → Cash Transfer',
+    cash_to_bank: 'Cash → Mandal Bank', upi_to_bank: 'UPI → Mandal Bank',
+    bank_to_cash: 'Mandal Bank → Cash', bank_to_upi: 'Mandal Bank → UPI'
+  };
+  return labels[type] || 'Bank Entry';
+}
+
+export function generateBankTreasuryPDF(entries = []) {
+  const allEntries = [...(Array.isArray(entries) ? entries : [])]
+    .sort((left, right) => String(right.date || '').localeCompare(String(left.date || '')));
+  const summary = calculateBankFDSummary(allEntries);
+  const element = document.createElement('div');
+  element.style.padding = '8mm';
+  element.style.fontFamily = "'Noto Sans Devanagari', 'Outfit', sans-serif";
+  element.style.color = '#0F172A';
+  element.style.background = '#ffffff';
+
+  element.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #047857; padding-bottom:4mm; margin-bottom:4mm;">
+      <div><div style="font-size:17px; font-weight:900; color:#065F46;">Rajmudra Mandal Bank & Treasury</div><div style="font-size:10px; color:#64748B; font-weight:700;">All-time transaction report</div></div>
+      <div style="text-align:right;"><div style="font-size:9px; color:#64748B;">CURRENT BANK / FD BALANCE</div><div style="font-size:16px; font-weight:900; color:#047857;">₹${Number(summary.current_fd_balance).toLocaleString('en-IN')}</div></div>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:3mm; margin-bottom:4mm; font-size:9px;">
+      <div style="background:#EFF6FF; padding:3mm; border-radius:3mm;"><b>Interest</b><br>₹${Number(summary.total_interest).toLocaleString('en-IN')}</div>
+      <div style="background:#FEF2F2; padding:3mm; border-radius:3mm;"><b>Withdrawals</b><br>₹${Number(summary.total_withdrawals).toLocaleString('en-IN')}</div>
+      <div style="background:#FFF7ED; padding:3mm; border-radius:3mm;"><b>Charges</b><br>₹${Number(summary.total_charges).toLocaleString('en-IN')}</div>
+      <div style="background:#ECFDF5; padding:3mm; border-radius:3mm;"><b>Entries</b><br>${allEntries.length}</div>
+    </div>
+    <table style="width:100%; border-collapse:collapse; font-size:8px;">
+      <thead><tr style="background:#ECFDF5; color:#065F46;"><th style="padding:5px; border:1px solid #A7F3D0;">Date</th><th style="padding:5px; border:1px solid #A7F3D0;">Year</th><th style="padding:5px; border:1px solid #A7F3D0;">Type</th><th style="padding:5px; border:1px solid #A7F3D0;">Description / Bank</th><th style="padding:5px; border:1px solid #A7F3D0; text-align:right;">Amount</th></tr></thead>
+      <tbody>
+        ${allEntries.length ? allEntries.map((item, index) => {
+          const outgoing = ['withdrawal', 'fd_expense', 'charge', 'bank_to_cash', 'bank_to_upi'].includes(item.type);
+          const transfer = isBankTransferType(item.type);
+          return `<tr style="background:${index % 2 ? '#F8FAFC' : '#FFFFFF'};"><td style="padding:5px; border:1px solid #E2E8F0;">${escapeHtml(formatDate(item.date))}</td><td style="padding:5px; border:1px solid #E2E8F0;">${escapeHtml(item.year || '-')}</td><td style="padding:5px; border:1px solid #E2E8F0;">${escapeHtml(bankEntryLabel(item.type))}</td><td style="padding:5px; border:1px solid #E2E8F0;"><b>${escapeHtml(item.title)}</b>${item.bank_name ? ` • ${escapeHtml(item.bank_name)}` : ''}${item.note ? `<br><span style="color:#64748B;">${escapeHtml(item.note)}</span>` : ''}</td><td style="padding:5px; border:1px solid #E2E8F0; text-align:right; font-weight:800; color:${outgoing ? '#DC2626' : transfer ? '#2563EB' : '#047857'};">${transfer ? '↔' : outgoing ? '-' : '+'} ₹${Number(item.amount).toLocaleString('en-IN')}</td></tr>`;
+        }).join('') : '<tr><td colspan="5" style="padding:15px; border:1px solid #E2E8F0; text-align:center;">No bank or treasury entries.</td></tr>'}
+      </tbody>
+    </table>
+  `;
+
+  html2pdf().set({
+    margin: [7, 7, 7, 7],
+    filename: 'Rajmudra_All_Time_Bank_Treasury_Report.pdf',
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+  }).from(element).save();
 }
