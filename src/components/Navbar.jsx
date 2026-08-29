@@ -17,7 +17,7 @@ export default function Navbar({ isAdmin, activeYear, activeTab, onChangeTab, on
 
   return (
     <>
-      <header style={{
+      <header className="topbar" style={{
         background: 'linear-gradient(135deg, #1E293B 0%, #0F172A 100%)',
         color: '#ffffff',
         padding: '10px 12px',

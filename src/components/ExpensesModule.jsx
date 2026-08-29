@@ -152,7 +152,7 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate, data = {
       </div>
 
       {/* Category Filter Horizontal Pills Bar */}
-      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 12 }}>
+      <div data-disable-page-swipe="true" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 12 }}>
         {EXPENSE_CATEGORIES.map(cat => (
           <button
             key={cat}

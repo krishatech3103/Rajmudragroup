@@ -16,6 +16,9 @@ import {
   fetchAvailableYears,
   fetchSettings,
   fetchYearData,
+  restoreAuthenticatedUser,
+  signInWithUsername,
+  signOut,
   subscribeToDataChanges
 } from './services/supabase';
 
@@ -79,25 +82,46 @@ export default function App() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [availableYears, setAvailableYears] = useState(DEFAULT_YEARS);
   const [data, setData] = useState(EMPTY_DATA);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  // Start true so a newly authenticated user never begins a ledger request
+  // before their server-selected festival year has been loaded.
   const [isSettingsLoading, setIsSettingsLoading] = useState(true);
   const [isDataLoading, setIsDataLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
   const [settingsError, setSettingsError] = useState('');
   const [dataError, setDataError] = useState('');
 
   const touchStartXRef = useRef(0);
   const touchStartYRef = useRef(0);
   const activeYearRef = useRef(activeYear);
-  const isAuthenticatedRef = useRef(isAuthenticated);
   const dataRequestRef = useRef(0);
   const bootstrapStartedRef = useRef(false);
+  const availableYearsLoadedRef = useRef(false);
+  const ignorePageSwipeRef = useRef(false);
+  const selectedLoginYearRef = useRef('');
 
   useEffect(() => {
     activeYearRef.current = activeYear;
   }, [activeYear]);
 
+  const restoreSecureSession = useCallback(async () => {
+    setIsAuthLoading(true);
+    setAuthError('');
+    try {
+      const identity = await restoreAuthenticatedUser();
+      if (!identity) return;
+      setIsAdmin(identity.role === 'admin');
+      setIsAuthenticated(true);
+    } catch (error) {
+      setAuthError(error.message || 'Could not restore the secure Supabase session.');
+    } finally {
+      setIsAuthLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    isAuthenticatedRef.current = isAuthenticated;
-  }, [isAuthenticated]);
+    void restoreSecureSession();
+  }, [restoreSecureSession]);
 
   const loadYearData = useCallback(async (year = activeYearRef.current) => {
     const requestedYear = String(year || '').trim();
@@ -123,7 +147,7 @@ export default function App() {
     }
   }, []);
 
-  const applySettings = useCallback(async (nextSettings, { loadSelectedYear = true } = {}) => {
+  const applySettings = useCallback((nextSettings, { loadSelectedYear = true } = {}) => {
     const normalizedSettings = { ...DEFAULT_SETTINGS, ...(nextSettings || {}) };
     setSettings(normalizedSettings);
 
@@ -133,31 +157,65 @@ export default function App() {
     if (loadSelectedYear && selectedYear !== activeYearRef.current) {
       activeYearRef.current = selectedYear;
       setActiveYear(selectedYear);
-      if (isAuthenticatedRef.current) await loadYearData(selectedYear);
     }
-  }, [loadYearData]);
+  }, []);
 
   const refreshBootstrap = useCallback(async ({ useSavedYear = false } = {}) => {
     setIsSettingsLoading(true);
     setSettingsError('');
     try {
-      const [nextSettings, years] = await Promise.all([fetchSettings(), fetchAvailableYears()]);
-      setAvailableYears(years);
+      // Settings is one small record and is needed immediately. The historic
+      // year scan is intentionally loaded later, after the active ledger is
+      // on-screen; waiting for every table here made startup feel slow.
+      const nextSettings = await fetchSettings();
       await applySettings(nextSettings, { loadSelectedYear: useSavedYear });
     } catch (error) {
       setSettingsError(error.message);
+      setDataError(error.message);
+      setIsDataLoading(false);
     } finally {
       setIsSettingsLoading(false);
     }
   }, [applySettings]);
 
   useEffect(() => {
-    // React StrictMode replays effects during development. Start the initial
-    // bootstrap once so it does not duplicate Supabase settings/year reads.
-    if (bootstrapStartedRef.current) return;
+    // No ledger/settings request is made until Supabase Auth has verified the
+    // user and their database role. This keeps permissions server-authoritative.
+    if (!isAuthenticated || bootstrapStartedRef.current) return;
     bootstrapStartedRef.current = true;
-    refreshBootstrap({ useSavedYear: true });
-  }, [refreshBootstrap]);
+    const hasLoginYear = Boolean(selectedLoginYearRef.current);
+    selectedLoginYearRef.current = '';
+    refreshBootstrap({ useSavedYear: !hasLoginYear });
+  }, [isAuthenticated, refreshBootstrap]);
+
+  // Rehydrate a kept tab session with a fresh Supabase read after settings
+  // finish loading. New logins use this same path, so no page refresh can
+  // display old in-memory ledger data.
+  useEffect(() => {
+    if (!isAuthenticated || isSettingsLoading || settingsError) return;
+    loadYearData(activeYearRef.current);
+  }, [activeYear, isAuthenticated, isSettingsLoading, loadYearData, settingsError]);
+
+  // The year selector is useful, but deriving it previously read every row
+  // from every ledger table before the app could render. Load it once in the
+  // background after the active year's data has arrived.
+  useEffect(() => {
+    if (
+      !isAuthenticated ||
+      isSettingsLoading ||
+      isDataLoading ||
+      data.year !== activeYear ||
+      availableYearsLoadedRef.current
+    ) return;
+
+    availableYearsLoadedRef.current = true;
+    fetchAvailableYears()
+      .then(years => setAvailableYears(years))
+      .catch(() => {
+        // Keep the default/settings years and permit the next data refresh to retry.
+        availableYearsLoadedRef.current = false;
+      });
+  }, [activeYear, data.year, isAuthenticated, isDataLoading, isSettingsLoading]);
 
   const handleDataChange = useCallback(async (change) => {
     if (!change) {
@@ -178,6 +236,9 @@ export default function App() {
 
   // Realtime replaces the old every-five-seconds full-table polling loop. The
   // callback applies only the changed record to the in-memory view state.
+  // A transient mobile WebSocket failure must not be presented as a failed
+  // data read—the last successful Supabase data remains valid and the client
+  // reconnects independently.
   useEffect(() => {
     if (!isAuthenticated) return undefined;
 
@@ -190,11 +251,11 @@ export default function App() {
           id: oldRecord?.id
         }),
         {
-          onError: error => setDataError(error.message)
+          onError: error => console.warn('Supabase Realtime is temporarily unavailable:', error)
         }
       );
     } catch (error) {
-      setDataError(error.message);
+      console.warn('Could not start Supabase Realtime:', error);
       return undefined;
     }
   }, [handleDataChange, isAuthenticated]);
@@ -219,6 +280,13 @@ export default function App() {
   };
 
   const handleTouchStart = (event) => {
+    const target = event.target;
+    ignorePageSwipeRef.current = Boolean(
+      target?.closest?.('[data-disable-page-swipe="true"]')
+    );
+
+    if (ignorePageSwipeRef.current) return;
+
     if (event.touches?.length === 1) {
       touchStartXRef.current = event.touches[0].clientX;
       touchStartYRef.current = event.touches[0].clientY;
@@ -226,6 +294,11 @@ export default function App() {
   };
 
   const handleTouchEnd = (event) => {
+    if (ignorePageSwipeRef.current) {
+      ignorePageSwipeRef.current = false;
+      return;
+    }
+
     if (!event.changedTouches?.length) return;
 
     const deltaX = event.changedTouches[0].clientX - touchStartXRef.current;
@@ -241,13 +314,19 @@ export default function App() {
     handleTabChange(TAB_ORDER[nextIndex]);
   };
 
-  const handlePinSuccess = async (adminFlag, selectedYear) => {
+  const handleTouchCancel = () => {
+    ignorePageSwipeRef.current = false;
+  };
+
+  const handleLogin = async ({ username, password, selectedYear }) => {
+    const identity = await signInWithUsername(username, password);
     const year = selectedYear || settings.active_year || DEFAULT_SETTINGS.active_year;
     activeYearRef.current = year;
+    selectedLoginYearRef.current = year;
     setActiveYear(year);
-    setIsAdmin(adminFlag);
+    setIsAdmin(identity.role === 'admin');
+    setIsDataLoading(true);
     setIsAuthenticated(true);
-    await loadYearData(year);
   };
 
   const handleSettingsChange = async (updatedSettings) => {
@@ -256,27 +335,37 @@ export default function App() {
 
   const handleLogout = () => {
     dataRequestRef.current += 1;
+    void signOut().catch(error => {
+      // The local UI is already locked. This warning helps diagnose a network
+      // failure without exposing any ledger state after a manual logout.
+      console.warn('Could not notify Supabase about logout:', error);
+    });
+    bootstrapStartedRef.current = false;
+    availableYearsLoadedRef.current = false;
+    selectedLoginYearRef.current = '';
     setIsAuthenticated(false);
     setIsAdmin(false);
     setActiveTab('dashboard');
     setData(EMPTY_DATA);
     setDataError('');
+    setSettingsError('');
+    setIsSettingsLoading(true);
   };
 
   if (!isAuthenticated) {
     return (
       <PinModal
-        onSuccess={handlePinSuccess}
+        onLogin={handleLogin}
         availableYears={availableYears}
-        isLoading={isSettingsLoading}
-        loadError={settingsError}
-        onRetry={() => refreshBootstrap({ useSavedYear: true })}
+        isLoading={isAuthLoading}
+        loadError={authError}
+        onRetry={restoreSecureSession}
       />
     );
   }
 
   return (
-    <div className="app-container" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+    <div className="app-container" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchCancel}>
       <PWAInstallBanner />
 
       <Navbar

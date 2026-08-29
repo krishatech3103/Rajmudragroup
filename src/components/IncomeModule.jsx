@@ -3,6 +3,7 @@ import { Plus, Search, Edit, Trash2, X, ArrowDownCircle, Languages, Lock, Messag
 import { generateWhatsAppReceipt } from '../utils/whatsapp';
 import { transliterateText } from '../utils/marathiTransliterate';
 import { createRecord, deleteRecord, findOrCreateMember, updateRecord } from '../services/supabase';
+import { calculatePaymentModeTotals } from '../utils/ledger';
 
 const INCOME_CATEGORIES = [
   'All',
@@ -49,11 +50,13 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate, data = {} 
     note: v.note,
     phone: v.phone,
     payment_mode: v.payment_mode || 'Cash',
+    status: v.status || 'paid',
     isVargani: true
   }));
 
   const allIncome = [...jamaList, ...varganiList].sort((a, b) => new Date(b.date) - new Date(a.date));
   const totalIncome = allIncome.reduce((sum, item) => sum + Number(item.amount), 0);
+  const receivedByMode = calculatePaymentModeTotals(allIncome, { excludePending: true });
 
   const filtered = allIncome.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -224,8 +227,19 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate, data = {} 
         </div>
       </div>
 
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+        <div className="luxe-card" style={{ padding: '10px 12px', borderRadius: 14, background: '#F0FDF4', border: '1px solid #BBF7D0', boxShadow: 'none' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 800, color: '#166534' }}><Banknote size={15} /> Cash received</span>
+          <strong style={{ display: 'block', marginTop: 3, fontSize: 16, color: '#047857' }}>Rs. {receivedByMode.cash.toLocaleString('en-IN')}</strong>
+        </div>
+        <div className="luxe-card" style={{ padding: '10px 12px', borderRadius: 14, background: '#EFF6FF', border: '1px solid #BFDBFE', boxShadow: 'none' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 800, color: '#1D4ED8' }}><CreditCard size={15} /> Online / UPI</span>
+          <strong style={{ display: 'block', marginTop: 3, fontSize: 16, color: '#1D4ED8' }}>Rs. {receivedByMode.online.toLocaleString('en-IN')}</strong>
+        </div>
+      </div>
+
       {/* Category Filter Horizontal Pills */}
-      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 12 }}>
+      <div data-disable-page-swipe="true" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 12 }}>
         {INCOME_CATEGORIES.map(cat => (
           <button
             key={cat}

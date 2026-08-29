@@ -246,7 +246,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
       </div>
 
       {/* Filter Tabs Pills */}
-      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 16 }}>
+      <div data-disable-page-swipe="true" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 16 }}>
         {['All', 'deposit', 'renew', 'interest', 'withdrawal', 'fd_expense', 'charge'].map(t => (
           <button
             key={t}

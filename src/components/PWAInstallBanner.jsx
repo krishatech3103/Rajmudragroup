@@ -1,20 +1,53 @@
 import React, { useState, useEffect } from 'react';
 import { Download, Smartphone } from 'lucide-react';
 
+const PWA_PROMPT_DISMISSED_KEY = 'rajmudra_pwa_prompt_dismissed_v1';
+
+function shouldShowInstallPrompt() {
+  if (typeof window === 'undefined') return false;
+
+  try {
+    const isInstalled = window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    return !isInstalled && window.localStorage.getItem(PWA_PROMPT_DISMISSED_KEY) !== 'true';
+  } catch {
+    // If browser storage is unavailable, retain the existing in-memory behaviour.
+    return true;
+  }
+}
+
+function dismissInstallPrompt() {
+  try {
+    window.localStorage.setItem(PWA_PROMPT_DISMISSED_KEY, 'true');
+  } catch {
+    // The banner state still hides for the current page.
+  }
+}
+
 export default function PWAInstallBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [showBanner, setShowBanner] = useState(true);
+  const [showBanner, setShowBanner] = useState(shouldShowInstallPrompt);
   const [showGuideModal, setShowGuideModal] = useState(false);
 
   useEffect(() => {
     const handleBeforeInstall = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setShowBanner(true);
+      if (shouldShowInstallPrompt()) setShowBanner(true);
+    };
+
+    const handleAppInstalled = () => {
+      dismissInstallPrompt();
+      setDeferredPrompt(null);
+      setShowGuideModal(false);
+      setShowBanner(false);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+    window.addEventListener('appinstalled', handleAppInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
   }, []);
 
   const handleInstallClick = async () => {
@@ -22,6 +55,7 @@ export default function PWAInstallBanner() {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
+        dismissInstallPrompt();
         setShowBanner(false);
       }
       setDeferredPrompt(null);
@@ -31,6 +65,7 @@ export default function PWAInstallBanner() {
   };
 
   const handleDismiss = () => {
+    dismissInstallPrompt();
     setShowBanner(false);
   };
 

@@ -20,6 +20,22 @@ const recordsForYear = (records, year) => {
   return year ? list.filter((record) => record?.year === year) : list;
 };
 
+/**
+ * Splits recorded income by payment mode. UPI and Online modes are grouped as
+ * digital collections; legacy records with no mode are treated as Cash.
+ */
+export function calculatePaymentModeTotals(records, { excludePending = false } = {}) {
+  return asArray(records).reduce((totals, record) => {
+    if (excludePending && record?.status === 'pending') return totals;
+
+    const amount = toAmount(record?.amount);
+    const mode = String(record?.payment_mode || 'Cash').trim().toLocaleLowerCase();
+    if (mode === 'cash') totals.cash += amount;
+    else totals.online += amount;
+    return totals;
+  }, { cash: 0, online: 0 });
+}
+
 const memberKey = (record) => {
   if (record?.member_id !== undefined && record.member_id !== null && record.member_id !== '') {
     return `id:${record.member_id}`;

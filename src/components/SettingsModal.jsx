@@ -125,7 +125,7 @@ export default function SettingsModal({ settings = {}, onClose, onSettingsChange
           <ShieldCheck size={18} /> Access-control note
         </h4>
         <p style={{ fontSize: 12, color: '#92400E', fontWeight: 600, margin: 0, lineHeight: 1.5 }}>
-          This Supabase-only version does not save PINs in the database or browser. Use Supabase Auth and restrictive RLS policies before exposing the app publicly.
+          Access is controlled by Supabase Auth and server-side roles: viewers can only read, while admins can change records. Passwords and PINs are never saved in app settings or ledger data.
         </p>
       </div>
 

@@ -3,6 +3,7 @@ import { Plus, Search, MessageSquare, Edit, Trash2, X, HeartHandshake, Languages
 import { generateWhatsAppReceipt } from '../utils/whatsapp';
 import { transliterateText } from '../utils/marathiTransliterate';
 import { createRecord, deleteRecord, findOrCreateMember, updateRecord } from '../services/supabase';
+import { calculatePaymentModeTotals } from '../utils/ledger';
 import MemberHistoryModal from './MemberHistoryModal';
 
 export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = {}, initialFilter = 'all' }) {
@@ -29,6 +30,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
   const varganiList = (Array.isArray(data.vargani) ? data.vargani : [])
     .filter(record => record?.year === activeYear);
   const totalVargani = varganiList.reduce((sum, v) => sum + Number(v.amount), 0);
+  const receivedByMode = calculatePaymentModeTotals(varganiList, { excludePending: true });
 
   const filtered = varganiList.filter(v => {
     const vStatus = v.status || 'paid';
@@ -182,8 +184,19 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
         </div>
       </div>
 
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+        <div className="luxe-card" style={{ padding: '10px 12px', borderRadius: 14, background: '#F0FDF4', border: '1px solid #BBF7D0', boxShadow: 'none' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 800, color: '#166534' }}><Banknote size={15} /> Cash received</span>
+          <strong style={{ display: 'block', marginTop: 3, fontSize: 16, color: '#047857' }}>Rs. {receivedByMode.cash.toLocaleString('en-IN')}</strong>
+        </div>
+        <div className="luxe-card" style={{ padding: '10px 12px', borderRadius: 14, background: '#EFF6FF', border: '1px solid #BFDBFE', boxShadow: 'none' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 800, color: '#1D4ED8' }}><CreditCard size={15} /> Online / UPI</span>
+          <strong style={{ display: 'block', marginTop: 3, fontSize: 16, color: '#1D4ED8' }}>Rs. {receivedByMode.online.toLocaleString('en-IN')}</strong>
+        </div>
+      </div>
+
       {/* Filter Tabs for Status: All, Paid, Pending */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, overflowX: 'auto' }}>
+      <div data-disable-page-swipe="true" style={{ display: 'flex', gap: 8, marginBottom: 12, overflowX: 'auto' }}>
         <button
           onClick={() => setStatusFilter('all')}
           className={`category-pill ${statusFilter === 'all' ? 'active' : ''}`}

@@ -1,16 +1,17 @@
 /**
  * Supabase data access layer
  *
- * This module is deliberately server-authoritative. It does not read from or
- * write to browser storage, queue offline mutations, periodically poll, or
- * merge local and remote records. Consumers should keep their view state in
- * React and refetch/update it after a successful awaited mutation.
+ * This module is deliberately server-authoritative. Ledger records are never
+ * read from or written to browser storage, queued offline, or merged back
+ * into the database. Supabase Auth persists only its signed-in session so a
+ * legitimate user stays signed in across a refresh.
  */
 
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || '').trim();
 const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
+const AUTH_USERNAME_DOMAIN = (import.meta.env.VITE_AUTH_USERNAME_DOMAIN || '').trim().toLowerCase();
 
 export const SETTINGS_TABLE = 'app_settings';
 export const DATA_TABLES = Object.freeze([
@@ -51,11 +52,13 @@ export function getSupabase() {
 
   try {
     client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      // Do not let the SDK create another browser-storage persistence layer.
+      // This stores Supabase's signed session token, not ledger data or a
+      // password. It lets Auth restore the same user after an app refresh.
       auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storageKey: 'rajmudra_supabase_auth'
       }
     });
   } catch (error) {
@@ -128,6 +131,96 @@ function normaliseYear(year) {
   const value = String(year || '').trim();
   if (!value) throw new Error('A fiscal year is required.');
   return value;
+}
+
+// ── Authentication and roles ──────────────────────────────────────────────
+
+async function getAuthorizedUser(user) {
+  if (!user?.id) throw new Error('Supabase did not return a signed-in user.');
+
+  const supabase = requireSupabase();
+  const result = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  const roleRow = assertResult('read role', 'user_roles', result);
+  const role = roleRow?.role;
+
+  if (role !== 'admin' && role !== 'viewer') {
+    throw new Error('This account has no Rajmudra access role. Ask an administrator to assign it as admin or viewer.');
+  }
+
+  return {
+    id: user.id,
+    email: user.email || '',
+    role
+  };
+}
+
+/** Signs in with Supabase Auth and verifies the server-assigned app role. */
+export async function signInWithPassword(email, password) {
+  const cleanEmail = String(email || '').trim().toLowerCase();
+  const cleanPassword = String(password || '');
+  if (!cleanEmail || !cleanPassword) {
+    throw new Error('Enter both email address and password.');
+  }
+
+  const supabase = requireSupabase();
+  const result = await supabase.auth.signInWithPassword({
+    email: cleanEmail,
+    password: cleanPassword
+  });
+  const authData = assertResult('sign in', 'authentication', result);
+
+  try {
+    return await getAuthorizedUser(authData?.user);
+  } catch (error) {
+    // A valid Supabase account without an app role must not remain signed in
+    // to this application.
+    await supabase.auth.signOut();
+    throw error;
+  }
+}
+
+/**
+ * Supabase password authentication needs an email internally. The UI uses a
+ * username, which is converted to the private, fixed-domain Auth email here.
+ * For example, username "admin" with domain "login.rajmudra.invalid" becomes
+ * "admin@login.rajmudra.invalid". The domain is an environment value, never a
+ * user-supplied part of the login identifier.
+ */
+export async function signInWithUsername(username, password) {
+  const cleanUsername = String(username || '').trim().toLowerCase();
+  if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(cleanUsername)) {
+    throw new Error('Username may contain only letters, numbers, dots, underscores, and hyphens.');
+  }
+  if (!AUTH_USERNAME_DOMAIN || !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(AUTH_USERNAME_DOMAIN)) {
+    throw new Error('Supabase username login is not configured. Set VITE_AUTH_USERNAME_DOMAIN.');
+  }
+
+  return signInWithPassword(`${cleanUsername}@${AUTH_USERNAME_DOMAIN}`, password);
+}
+
+/** Restores an existing Supabase Auth session after a browser/app refresh. */
+export async function restoreAuthenticatedUser() {
+  const supabase = requireSupabase();
+  const result = await supabase.auth.getUser();
+  const user = assertResult('restore session', 'authentication', result)?.user;
+  if (!user) return null;
+
+  try {
+    return await getAuthorizedUser(user);
+  } catch (error) {
+    await supabase.auth.signOut();
+    throw error;
+  }
+}
+
+/** Clears the locally persisted Supabase session without touching server data. */
+export async function signOut() {
+  const result = await requireSupabase().auth.signOut();
+  assertResult('sign out', 'authentication', result);
 }
 
 /**
