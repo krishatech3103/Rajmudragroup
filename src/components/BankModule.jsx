@@ -10,10 +10,27 @@ const YEARS = ['2026-27', '2025-26', '2024-25', '2027-28', '2023-24'];
 const MOVEMENT_TITLES = Object.freeze({
   cash_to_upi: 'Cash to UPI Transfer',
   upi_to_cash: 'UPI to Cash Transfer',
+  cash_to_bank: 'Cash to Mandal Bank Transfer',
   upi_to_bank: 'UPI to Mandal Bank FD Transfer',
   bank_to_cash: 'FD Withdrawal to Cash',
   bank_to_upi: 'FD Withdrawal to UPI'
 });
+
+const TRANSFER_LOCATIONS = Object.freeze(['Cash', 'UPI / Online', 'Bank / FD']);
+const TRANSFER_TYPE_BY_ROUTE = Object.freeze({
+  'Cash:UPI / Online': 'cash_to_upi',
+  'Cash:Bank / FD': 'cash_to_bank',
+  'UPI / Online:Cash': 'upi_to_cash',
+  'UPI / Online:Bank / FD': 'upi_to_bank',
+  'Bank / FD:Cash': 'bank_to_cash',
+  'Bank / FD:UPI / Online': 'bank_to_upi'
+});
+
+const transferTypeForRoute = (source, destination) => TRANSFER_TYPE_BY_ROUTE[`${source}:${destination}`] || '';
+const transferRouteForType = (entryType) => {
+  const route = Object.entries(TRANSFER_TYPE_BY_ROUTE).find(([, type]) => type === entryType);
+  return route ? route[0].split(':') : null;
+};
 
 const BANK_ENTRY_TITLES = Object.freeze({
   bank_income: 'Bank Income / Credit',
@@ -26,6 +43,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isTransferForm, setIsTransferForm] = useState(false);
 
   // Form State
   const [title, setTitle] = useState('');
@@ -39,10 +57,13 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
   const [expiryDate, setExpiryDate] = useState('');
   const [holderName, setHolderName] = useState('');
   const [note, setNote] = useState('');
+  const [transferSource, setTransferSource] = useState('Cash');
+  const [transferDestination, setTransferDestination] = useState('UPI / Online');
 
   const fdList = Array.isArray(data.bank_fd) ? data.bank_fd : [];
   const fdSummary = calculateBankFDSummary(fdList);
   const treasuryBalances = calculateTreasuryBalances(activeYear, data);
+  const hasMaturityDetails = Number(fdSummary.expected_returns) > 0 || fdSummary.expired_count > 0;
 
   const filtered = fdList.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -59,6 +80,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
   };
 
   const handleTypeChange = (nextType) => {
+    setIsTransferForm(false);
     setType(nextType);
     if (!editItem && (MOVEMENT_TITLES[nextType] || BANK_ENTRY_TITLES[nextType])) {
       setTitle(MOVEMENT_TITLES[nextType] || BANK_ENTRY_TITLES[nextType]);
@@ -69,6 +91,20 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
     }
   };
 
+  const handleTransferRouteChange = (source, destination) => {
+    if (source === destination) return;
+    const nextType = transferTypeForRoute(source, destination);
+    if (!nextType) return;
+    setTransferSource(source);
+    setTransferDestination(destination);
+    setType(nextType);
+    setTitle(MOVEMENT_TITLES[nextType]);
+    setBankName(source === 'Bank / FD' || destination === 'Bank / FD' ? 'Mandal Bank FD Account' : 'Mandal Treasury');
+    setExpiryDate('');
+    setInterestRate('0');
+    setExpectedReturns('');
+  };
+
   const openForm = (item = null) => {
     if (!isAdmin) return;
     if (item && item.is_locked) {
@@ -76,7 +112,9 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
       return;
     }
     if (item) {
+      const transferRoute = transferRouteForType(item.type);
       setEditItem(item);
+      setIsTransferForm(Boolean(transferRoute));
       setTitle(item.title);
       setType(item.type || 'deposit');
       setAmount(item.amount);
@@ -88,9 +126,12 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
       setExpiryDate(item.expiry_date || '');
       setHolderName(item.holder_name || '');
       setNote(item.note || '');
+      setTransferSource(transferRoute?.[0] || 'Cash');
+      setTransferDestination(transferRoute?.[1] || 'UPI / Online');
     } else {
       const today = new Date().toISOString().split('T')[0];
       setEditItem(null);
+      setIsTransferForm(false);
       setTitle('');
       setType('deposit');
       setAmount('');
@@ -105,6 +146,8 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
       setExpiryDate(nextYear.toISOString().split('T')[0]);
       setHolderName('');
       setNote('');
+      setTransferSource('Cash');
+      setTransferDestination('UPI / Online');
     }
     setShowModal(true);
   };
@@ -113,8 +156,11 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
     if (!isAdmin) return;
     const today = new Date().toISOString().split('T')[0];
     setEditItem(null);
+    setIsTransferForm(true);
+    setTransferSource('Cash');
+    setTransferDestination('UPI / Online');
     setType('cash_to_upi');
-    setTitle('Cash to UPI Transfer');
+    setTitle(MOVEMENT_TITLES.cash_to_upi);
     setAmount('');
     setInterestRate('0');
     setExpectedReturns('');
@@ -151,13 +197,19 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
       return;
     }
 
+    const entryType = isTransferForm ? transferTypeForRoute(transferSource, transferDestination) : type;
+    if (!entryType) {
+      alert('Choose two different transfer locations.');
+      return;
+    }
+
     // Prevent a new transfer from moving more than the currently calculated
     // fund balance. Historical-year edits remain allowed because this screen
     // only has the active year's income and expense rows in memory.
-    if (!editItem && recordYear === activeYear && isBankTransferType(type)) {
-      const sourceBalance = type === 'cash_to_upi' || type === 'cash_to_bank'
+    if (!editItem && recordYear === activeYear && isBankTransferType(entryType)) {
+      const sourceBalance = entryType === 'cash_to_upi' || entryType === 'cash_to_bank'
         ? treasuryBalances.cash
-        : type === 'upi_to_cash' || type === 'upi_to_bank'
+        : entryType === 'upi_to_cash' || entryType === 'upi_to_bank'
           ? treasuryBalances.online
           : fdSummary.current_fd_balance;
       if (numAmt > sourceBalance) {
@@ -166,14 +218,14 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
       }
     }
 
-    if (!editItem && type === 'bank_expense' && numAmt > fdSummary.current_fd_balance) {
+    if (!editItem && entryType === 'bank_expense' && numAmt > fdSummary.current_fd_balance) {
       alert(`Bank expense is greater than the available Bank / FD balance (Rs. ${fdSummary.current_fd_balance.toLocaleString('en-IN')}).`);
       return;
     }
 
     const payload = {
       title: title.trim(),
-      type,
+      type: entryType,
       year: recordYear || deriveYearFromDate(date, activeYear),
       amount: numAmt,
       interest_rate: Number(interestRate) || 0,
@@ -195,7 +247,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
       // Keep the existing FD-expense feature, but make both server writes
       // explicit and awaited. A failed companion expense rolls back the just
       // created Bank FD row so an incomplete transaction is not left behind.
-      if (!editItem && type === 'fd_expense') {
+      if (!editItem && entryType === 'fd_expense') {
         try {
           const expenseRecord = await createRecord('kharch', {
             title: `[FD Withdrawal Expense] ${payload.title}`,
@@ -304,52 +356,31 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
         </div>
       </div>
 
-      <CollapsibleSection
-        title="Balances & maturity details"
-        summary={`Cash and UPI for ${activeYear}, plus FD maturity information`}
-        style={{ marginBottom: 20 }}
-      >
-      {/* Summary KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-        <div className="luxe-card" style={{ padding: 16, background: '#FEF2F2', border: '1px solid #FECACA' }}>
-          <span style={{ fontSize: 11, fontWeight: 800, color: '#991B1B', display: 'flex', alignItems: 'center', gap: 6, textTransform: 'uppercase' }}>
-            <Banknote size={14} /> Cash on hand · Year {activeYear}
-          </span>
-          <p style={{ fontSize: 18, fontWeight: 900, color: '#DC2626', margin: '4px 0 0 0' }}>
-            Rs. {treasuryBalances.cash.toLocaleString('en-IN')}
-          </p>
-        </div>
-
-        <div className="luxe-card" style={{ padding: 16, background: '#EFF6FF', border: '1px solid #BFDBFE' }}>
-          <span style={{ fontSize: 11, fontWeight: 800, color: '#1D4ED8', display: 'flex', alignItems: 'center', gap: 6, textTransform: 'uppercase' }}>
-            <CreditCard size={14} /> UPI / Online · Year {activeYear}
-          </span>
-          <p style={{ fontSize: 18, fontWeight: 900, color: '#2563EB', margin: '4px 0 0 0' }}>
-            Rs. {treasuryBalances.online.toLocaleString('en-IN')}
-          </p>
-        </div>
-
-        <div className="luxe-card" style={{ padding: 16, background: '#F0FDF4', border: '1px solid #DCFCE7' }}>
+      {hasMaturityDetails && (
+        <CollapsibleSection title="FD maturity details" summary="Expected maturity value and renewal alerts" style={{ marginBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+            <div className="luxe-card" style={{ padding: 16, background: '#F0FDF4', border: '1px solid #DCFCE7' }}>
           <span style={{ fontSize: 11, fontWeight: 800, color: '#166534', display: 'block', textTransform: 'uppercase' }}>
             Expected Maturity Returns
           </span>
           <p style={{ fontSize: 18, fontWeight: 900, color: '#047857', margin: '4px 0 0 0' }}>
             Rs. {fdSummary.expected_returns.toLocaleString('en-IN')}
           </p>
-        </div>
+            </div>
 
-        {fdSummary.expired_count > 0 && (
-          <div className="luxe-card" style={{ padding: 16, background: '#FFFBEB', border: '1px solid #FDE68A' }}>
+            {fdSummary.expired_count > 0 && (
+              <div className="luxe-card" style={{ padding: 16, background: '#FFFBEB', border: '1px solid #FDE68A' }}>
             <span style={{ fontSize: 11, fontWeight: 800, color: '#B45309', display: 'flex', alignItems: 'center', gap: 6 }}>
               <AlertTriangle size={14} color="#D97706" /> FD Matured / Renew Due
             </span>
             <p style={{ fontSize: 16, fontWeight: 900, color: '#92400E', margin: '4px 0 0 0' }}>
               {fdSummary.expired_count} FD Receipt Matured
             </p>
+              </div>
+            )}
           </div>
-        )}
-      </div>
-      </CollapsibleSection>
+        </CollapsibleSection>
+      )}
 
       {/* Filter Tabs Pills */}
       <div data-disable-page-swipe="true" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 16 }}>
@@ -509,7 +540,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
             <div className="sheet-pill" />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <h3 style={{ fontSize: 18, fontWeight: 900, color: '#047857' }}>
-                {editItem ? 'Edit Bank Transaction' : 'Record New Bank / FD Entry'}
+                {isTransferForm ? (editItem ? 'Edit Transfer' : 'Record Transfer') : editItem ? 'Edit Bank Transaction' : 'Record New Bank / FD Entry'}
               </h3>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
                 <X size={22} color="#64748B" />
@@ -517,21 +548,40 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
             </div>
 
             <form onSubmit={handleSave}>
+              {isTransferForm ? (
+                <div className="input-group">
+                  <label className="input-label">Move Money *</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <label style={{ display: 'block' }}>
+                      <span style={{ display: 'block', marginBottom: 5, color: '#64748B', fontSize: 11, fontWeight: 800 }}>FROM</span>
+                      <select className="input-field" value={transferSource} onChange={event => {
+                        const nextSource = event.target.value;
+                        const nextDestination = nextSource === transferDestination
+                          ? TRANSFER_LOCATIONS.find(location => location !== nextSource)
+                          : transferDestination;
+                        handleTransferRouteChange(nextSource, nextDestination);
+                      }}>
+                        {TRANSFER_LOCATIONS.map(location => <option key={location} value={location}>{location}</option>)}
+                      </select>
+                    </label>
+                    <label style={{ display: 'block' }}>
+                      <span style={{ display: 'block', marginBottom: 5, color: '#64748B', fontSize: 11, fontWeight: 800 }}>TO</span>
+                      <select className="input-field" value={transferDestination} onChange={event => handleTransferRouteChange(transferSource, event.target.value)}>
+                        {TRANSFER_LOCATIONS.filter(location => location !== transferSource).map(location => <option key={location} value={location}>{location}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                  <p style={{ margin: '7px 0 0', color: '#475569', fontSize: 12, fontWeight: 700 }}>From → To. The source balance is checked before saving.</p>
+                </div>
+              ) : (
               <div className="input-group">
-                <label className="input-label">Transaction Type *</label>
+                <label className="input-label">Bank Entry Type *</label>
                 <select
                   className="input-field"
                   value={type}
                   onChange={e => handleTypeChange(e.target.value)}
                   disabled={!!editItem}
                 >
-                  <optgroup label="Money movement (not income or expense)">
-                    <option value="cash_to_upi">Cash → UPI / Online</option>
-                    <option value="upi_to_cash">UPI / Online → Cash</option>
-                    <option value="upi_to_bank">UPI / Online → Mandal Bank / FD</option>
-                    <option value="bank_to_cash">FD Withdrawal → Cash</option>
-                    <option value="bank_to_upi">FD Withdrawal → UPI / Online</option>
-                  </optgroup>
                   <optgroup label="Bank and FD entries">
                   <option value="deposit">FD Deposit / New FD</option>
                   <option value="renew">FD Renew</option>
@@ -539,9 +589,11 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
                   <option value="bank_income">Bank Income / Credit (separate from yearly income)</option>
                   <option value="bank_expense">Bank Expense / Debit (separate from yearly expenses)</option>
                   <option value="charge">Bank Charges / Service Fee</option>
+                  {editItem && ['withdrawal', 'fd_expense'].includes(type) && <option value={type}>Existing: {getTypeLabel(type).label}</option>}
                   </optgroup>
                 </select>
               </div>
+              )}
 
               <div className="input-group">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -645,7 +697,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
                 </>
               )}
 
-              <div className="input-group">
+              {!isTransferForm && <div className="input-group">
                 <label className="input-label">Bank / Branch Name</label>
                 <input
                   type="text"
@@ -654,7 +706,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
                   onChange={e => setBankName(e.target.value)}
                   placeholder="e.g. State Bank of India / Mandal Account"
                 />
-              </div>
+              </div>}
 
               {isBankTransferType(type) && (
                 <div className="input-group">
