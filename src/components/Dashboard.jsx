@@ -1,6 +1,7 @@
 import React from 'react';
 import { Wallet, Sparkles, ArrowUpRight, ArrowDownRight, Flame, Landmark, ChevronRight, Users, CheckCircle2, Clock } from 'lucide-react';
 import { calculateBankFDSummary, calculateSummary } from '../utils/ledger';
+import CollapsibleSection from './CollapsibleSection';
 
 export default function Dashboard({ isAdmin, activeYear, onUpdate, onNavigateTab, data = {} }) {
   const ledgerData = data || {};
@@ -139,6 +140,11 @@ export default function Dashboard({ isAdmin, activeYear, onUpdate, onNavigateTab
         </div>
       </div>
 
+      <CollapsibleSection
+        title="Yearly details & member status"
+        summary="Donations, other income, expenses, and member payment progress"
+        style={{ marginBottom: 16 }}
+      >
       {/* Financial Summary Stat Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 16 }}>
         <div
@@ -237,6 +243,7 @@ export default function Dashboard({ isAdmin, activeYear, onUpdate, onNavigateTab
           <span style={{ fontSize: 10, color: '#92400E', fontWeight: 700 }}>Payment Due</span>
         </div>
       </div>
+      </CollapsibleSection>
 
       {/* Today's Aarti Yajman Card (Visible to Viewers & Admin) */}
       {latestAarti && (

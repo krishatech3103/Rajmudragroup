@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Search, Edit, Trash2, X, ArrowDownCircle, Languages, Lock, MessageSquare, ChevronDown, ChevronUp, CreditCard, Banknote } from 'lucide-react';
 import { generateWhatsAppReceipt } from '../utils/whatsapp';
 import { transliterateText } from '../utils/marathiTransliterate';
-import { createRecord, deleteRecord, findOrCreateMember, updateRecord } from '../services/supabase';
+import { createRecord, deleteDonationRecord, deleteRecord, findOrCreateMember, updateRecord } from '../services/supabase';
 import { calculatePaymentModeTotals } from '../utils/ledger';
 
 const INCOME_CATEGORIES = [
@@ -55,7 +55,8 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate, data = {} 
   }));
 
   const allIncome = [...jamaList, ...varganiList].sort((a, b) => new Date(b.date) - new Date(a.date));
-  const totalIncome = allIncome.reduce((sum, item) => sum + Number(item.amount), 0);
+  const receivedIncome = allIncome.filter(item => !item.isVargani || (item.status || 'paid') === 'paid');
+  const totalIncome = receivedIncome.reduce((sum, item) => sum + Number(item.amount), 0);
   const receivedByMode = calculatePaymentModeTotals(allIncome, { excludePending: true });
 
   const filtered = allIncome.filter(item => {
@@ -176,8 +177,11 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate, data = {} 
     if (confirm(`Delete income entry for "${item.title}"?`)) {
       try {
         if (item.isVargani) {
-          await deleteRecord('vargani', item.raw_id);
-          onUpdate?.({ table: 'vargani', eventType: 'DELETE', id: item.raw_id });
+          const deleted = await deleteDonationRecord(item.raw_id);
+          onUpdate?.({ table: 'vargani', eventType: 'DELETE', id: deleted.id });
+          if (deleted.deletedMemberId !== null) {
+            onUpdate?.({ table: 'members', eventType: 'DELETE', id: deleted.deletedMemberId });
+          }
         } else {
           await deleteRecord('jama', item.id);
           onUpdate?.({ table: 'jama', eventType: 'DELETE', id: item.id });
@@ -222,7 +226,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate, data = {} 
             Rs. {totalIncome.toLocaleString('en-IN')}
           </p>
           <span style={{ fontSize: 11, background: 'rgba(255, 255, 255, 0.25)', padding: '3px 10px', borderRadius: 12, fontWeight: 800, marginTop: 2, display: 'inline-block' }}>
-            {allIncome.length} Entries
+            {receivedIncome.length} Received entries
           </span>
         </div>
       </div>

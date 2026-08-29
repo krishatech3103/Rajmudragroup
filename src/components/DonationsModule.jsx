@@ -31,8 +31,9 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
     .filter(record => record?.year === activeYear);
   const activeMemberIds = new Set(varganiList.map(record => record?.member_id).filter(id => id !== undefined && id !== null).map(String));
   const activeMemberCount = activeMemberIds.size || new Set(varganiList.map(record => record?.member_name).filter(Boolean)).size;
-  const totalVargani = varganiList.reduce((sum, v) => sum + Number(v.amount), 0);
   const receivedByMode = calculatePaymentModeTotals(varganiList, { excludePending: true });
+  const totalVargani = receivedByMode.cash + receivedByMode.online;
+  const paidDonationCount = varganiList.filter(v => (v.status || 'paid') === 'paid').length;
 
   const filtered = varganiList.filter(v => {
     const vStatus = v.status || 'paid';
@@ -184,7 +185,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
             Rs. {totalVargani.toLocaleString('en-IN')}
           </p>
           <span style={{ fontSize: 11, background: 'rgba(255, 255, 255, 0.25)', padding: '3px 10px', borderRadius: 12, fontWeight: 800, marginTop: 2, display: 'inline-block' }}>
-            {varganiList.length} Receipts
+            {paidDonationCount} Paid receipts
           </span>
         </div>
       </div>

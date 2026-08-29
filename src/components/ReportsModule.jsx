@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Download, CheckCircle2, Clock, BarChart2 } from 'lucide-react';
 import { generatePDFReport } from '../utils/pdf';
 import { calculateSummary, getKharchByCategory } from '../utils/ledger';
+import CollapsibleSection from './CollapsibleSection';
 
 export default function ReportsModule({ activeYear, data = {} }) {
   const [subTab, setSubTab] = useState('financials');
@@ -110,10 +111,11 @@ export default function ReportsModule({ activeYear, data = {} }) {
       {subTab === 'financials' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           {/* Revenue vs Expenses Ratio */}
-          <div className="luxe-card">
-            <h3 style={{ fontSize: 16, fontWeight: 900, marginBottom: 16, color: '#0F172A' }}>
-              Revenue vs Expenses Ratio
-            </h3>
+          <CollapsibleSection
+            title="Revenue vs expenses"
+            summary={`Income ${fmt(summary.income)} • Expenses ${fmt(summary.kharch)}`}
+            defaultOpen
+          >
 
             <div style={{ marginBottom: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 8 }}>
@@ -138,13 +140,13 @@ export default function ReportsModule({ activeYear, data = {} }) {
                 }} />
               </div>
             </div>
-          </div>
+          </CollapsibleSection>
 
           {/* Expense Category Breakdown */}
-          <div className="luxe-card">
-            <h3 style={{ fontSize: 16, fontWeight: 900, marginBottom: 16, color: '#0F172A' }}>
-              Expenses Category Distribution
-            </h3>
+          <CollapsibleSection
+            title="Expense category details"
+            summary={`${kharchCats.length} categories — open when you need the breakdown`}
+          >
 
             {kharchCats.length === 0 ? (
               <p style={{ fontSize: 14, color: '#94A3B8', textAlign: 'center', padding: '24px 0' }}>
@@ -168,7 +170,7 @@ export default function ReportsModule({ activeYear, data = {} }) {
                 })}
               </div>
             )}
-          </div>
+          </CollapsibleSection>
         </div>
       ) : (
         <div>

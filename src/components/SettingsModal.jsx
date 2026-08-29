@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AlertTriangle, Calendar, Download, ShieldCheck, Upload } from 'lucide-react';
 import { fetchExportData, fetchSettings, importData, saveSettings } from '../services/supabase';
 import { validateAndSanitizeBackupData } from '../utils/security';
+import CollapsibleSection from './CollapsibleSection';
 
 export default function SettingsModal({ settings = {}, onClose, onSettingsChange, onUpdate }) {
   const [activeYear, setActiveYear] = useState(settings.active_year || '2026-27');
@@ -129,10 +130,11 @@ export default function SettingsModal({ settings = {}, onClose, onSettingsChange
         </p>
       </div>
 
-      <div className="luxe-card" style={{ marginBottom: 14 }}>
-        <h4 style={{ fontSize: 14, fontWeight: 800, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, color: '#059669' }}>
-          <Download size={18} /> Supabase Data Backup
-        </h4>
+      <CollapsibleSection
+        title="Supabase data backup"
+        summary="Export or intentionally restore server data"
+        style={{ marginBottom: 14 }}
+      >
         <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, marginBottom: 12 }}>
           Export reads the current server data. Import is an explicit server-side merge; it never writes to browser storage.
         </p>
@@ -153,7 +155,7 @@ export default function SettingsModal({ settings = {}, onClose, onSettingsChange
             <input type="file" accept=".json,application/json" onChange={handleImportJSON} disabled={isImporting || isExporting} style={{ display: 'none' }} />
           </label>
         </div>
-      </div>
+      </CollapsibleSection>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, color: '#B45309', padding: '0 4px' }}>
         <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 1 }} />

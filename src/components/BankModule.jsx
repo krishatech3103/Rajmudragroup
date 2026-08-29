@@ -4,6 +4,7 @@ import { transliterateText } from '../utils/marathiTransliterate';
 import { createRecord, deleteRecord, updateRecord } from '../services/supabase';
 import { calculateBankFDSummary, calculateTreasuryBalances, deriveYearFromDate, isBankTransferType } from '../utils/ledger';
 import { generateBankTreasuryPDF } from '../utils/pdf';
+import CollapsibleSection from './CollapsibleSection';
 
 const YEARS = ['2026-27', '2025-26', '2024-25', '2027-28', '2023-24'];
 const MOVEMENT_TITLES = Object.freeze({
@@ -303,8 +304,13 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
         </div>
       </div>
 
+      <CollapsibleSection
+        title="Balances & maturity details"
+        summary={`Cash and UPI for ${activeYear}, plus FD maturity information`}
+        style={{ marginBottom: 20 }}
+      >
       {/* Summary KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
         <div className="luxe-card" style={{ padding: 16, background: '#FEF2F2', border: '1px solid #FECACA' }}>
           <span style={{ fontSize: 11, fontWeight: 800, color: '#991B1B', display: 'flex', alignItems: 'center', gap: 6, textTransform: 'uppercase' }}>
             <Banknote size={14} /> Cash on hand · Year {activeYear}
@@ -343,6 +349,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
           </div>
         )}
       </div>
+      </CollapsibleSection>
 
       {/* Filter Tabs Pills */}
       <div data-disable-page-swipe="true" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 16 }}>

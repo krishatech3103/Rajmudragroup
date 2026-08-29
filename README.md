@@ -42,6 +42,8 @@ Supabase-backed accounts, member donations, income/expenses, Aarti schedules, ba
 
 6. Before deploying the cash/UPI holder field for transfers and FD withdrawals, run [supabase_bank_holder.sql](./supabase_bank_holder.sql).
 
+7. Before deploying the database-enforced balance protection, run [supabase_financial_integrity.sql](./supabase_financial_integrity.sql). It blocks invalid Cash/UPI expenses, transfers, and Bank/FD debits even when multiple devices are used.
+
 ## Secure login: admin and view-only users
 
 The app now uses a username-and-password screen backed by Supabase Auth, not a browser PIN. Supabase stores password hashes and the database enforces permissions:
