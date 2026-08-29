@@ -1,5 +1,375 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import React, { useState } from 'react';
-import { Plus, Search, Calendar, Clock, Sun, Moon, Edit, Trash2, X, Flame, Languages, Copy, Check, Download } from 'lucide-react';
+import { Plus, Search, Calendar, Clock, Sun, Moon, Edit, Trash2, X, Flame, Languages, Copy, Check, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import { transliterateText } from '../utils/marathiTransliterate';
 import { createRecord, deleteRecord, updateRecord } from '../services/supabase';
 import { generateAartiSchedulePDF } from '../utils/pdf';
@@ -10,6 +380,7 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }
   const [editItem, setEditItem] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [expandedAartiId, setExpandedAartiId] = useState(null);
 
   // Form State
   const [dayTitle, setDayTitle] = useState('Day 1 (Sthapana)');
@@ -115,6 +486,10 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }
     setTimeout(() => setCopiedId(null), 2500);
   };
 
+  const toggleAartiEntry = (id) => {
+    setExpandedAartiId((current) => (current === id ? null : id));
+  };
+
   return (
     <div style={{ width: '100%', boxSizing: 'border-box' }} className="animate-fade-in">
       {/* Aarti Banner */}
@@ -133,21 +508,14 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }
       }}>
         <div>
           <h2 style={{ fontSize: 20, fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: 10, color: '#ffffff' }}>
-            <Flame size={24} color="#FFD700" /> Aarti Schedule & Copy Notice
+            <Flame size={24} color="#FFD700" /> Aarti Schedules
           </h2>
           <span style={{ fontSize: 13, color: '#FFE0B2', fontWeight: 600, marginTop: 4, display: 'block' }}>
-            Daily Aarti Timings, Family Hosts & Copy Notices • Year {activeYear}
+            Daily Aarti Timings, Hosts • Year {activeYear}
           </span>
         </div>
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button
-            className="btn btn-secondary"
-            onClick={() => generateAartiSchedulePDF(activeYear, aartiList)}
-            style={{ padding: '12px 18px', borderRadius: 16, fontSize: 14, fontWeight: 800 }}
-          >
-            <Download size={18} /> One-Page PDF
-          </button>
           {isAdmin && (
             <button
               className="btn btn-gold"
@@ -163,6 +531,15 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }
               <Plus size={18} /> Add Aarti Day
             </button>
           )}
+          <button
+            className="btn btn-secondary"
+            onClick={() => generateAartiSchedulePDF(activeYear, aartiList)}
+            style={{ padding: '12px 18px', borderRadius: 16, fontSize: 14, fontWeight: 800 }}
+            title="आरती वेळापत्रक PDF डाउनलोड करा"
+            aria-label="आरती वेळापत्रक PDF डाउनलोड करा"
+          >
+            <Download size={20} />
+          </button>
         </div>
       </div>
 
@@ -174,7 +551,7 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }
             type="text"
             className="input-field"
             style={{ paddingLeft: 46, borderRadius: 16 }}
-            placeholder="Search by Aarti day or family host..."
+            placeholder="Search by Aarti day or  host..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -186,23 +563,31 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }
         <div style={{ textAlign: 'center', padding: '60px 0', color: '#94A3B8' }} className="luxe-card">
           <Flame size={56} color="#FFCC80" style={{ margin: '0 auto 12px auto' }} />
           <h3 style={{ fontSize: 16, fontWeight: 800, color: '#334155', margin: 0 }}>Aarti Schedule is Empty</h3>
-          <p style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>Click "Add Aarti Day" to set morning and evening Aarti family hosts.</p>
+          <p style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>Click "Add Aarti Day" to set morning and evening Aarti hosts.</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 18 }}>
-          {filtered.map(a => (
-            <div key={a.id} className="luxe-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <div>
-                {/* Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: '#D84315', background: '#FFF7ED', border: '1px solid #FFEDD5', padding: '3px 10px', borderRadius: 10 }}>
-                    📅 {new Date(a.date).toLocaleDateString('en-IN')}
-                  </span>
-                  <h3 style={{ fontSize: 18, fontWeight: 900, margin: 0, color: '#0F172A' }}>
-                    {a.day_title}
-                  </h3>
-                </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {filtered.map(a => {
+            const isExpanded = expandedAartiId === a.id;
+            return (
+            <div key={a.id} className="luxe-card" style={{ padding: '14px 15px' }}>
+              <button
+                type="button"
+                onClick={() => toggleAartiEntry(a.id)}
+                aria-expanded={isExpanded}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, border: 'none', background: 'transparent', padding: 0, textAlign: 'left', cursor: 'pointer' }}
+              >
+                <span style={{ fontSize: 12, fontWeight: 800, color: '#D84315', background: '#FFF7ED', border: '1px solid #FFEDD5', padding: '4px 8px', borderRadius: 9, flexShrink: 0 }}>
+                  📅 {new Date(a.date).toLocaleDateString('en-IN')}
+                </span>
+                <h3 style={{ fontSize: 16, fontWeight: 900, margin: 0, color: '#0F172A', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                  {a.day_title}
+                </h3>
+                {isExpanded ? <ChevronUp size={20} color="#64748B" /> : <ChevronDown size={20} color="#64748B" />}
+              </button>
 
+              {isExpanded && (
+                <div style={{ paddingTop: 14, marginTop: 14, borderTop: '1px solid #F1F5F9' }}>
                 {/* Morning Aarti Card */}
                 <div style={{
                   background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
@@ -252,7 +637,7 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }
                     </span>
                   </div>
                   <p style={{ fontSize: 15, fontWeight: 900, margin: '0 0 10px 0', color: '#0C4A6E' }}>
-                    👤 {a.evening_host || 'Mandal Family'}
+                    👤 {a.evening_host || 'Mandal'}
                   </p>
 
                   <button
@@ -278,27 +663,29 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }
                     📌 {a.note}
                   </p>
                 )}
-              </div>
 
-              {/* Admin Actions */}
-              {isAdmin && (
-                <div style={{ display: 'flex', gap: 8, marginTop: 14, paddingTop: 12, borderTop: '1px solid #F1F5F9' }}>
-                  <button
-                    onClick={() => openForm(a)}
-                    style={{ flex: 1, background: '#FEF3C7', border: '1px solid #FDE68A', padding: 8, borderRadius: 12, color: '#B45309', cursor: 'pointer', fontWeight: 800, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
-                  >
-                    <Edit size={15} /> Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(a.id, a.day_title)}
-                    style={{ flex: 1, background: '#FEE2E2', border: '1px solid #FCA5A5', padding: 8, borderRadius: 12, color: '#B91C1C', cursor: 'pointer', fontWeight: 800, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
-                  >
-                    <Trash2 size={15} /> Delete
-                  </button>
+                {/* Admin Actions */}
+                {isAdmin && (
+                  <div style={{ display: 'flex', gap: 8, marginTop: 14, paddingTop: 12, borderTop: '1px solid #F1F5F9' }}>
+                    <button
+                      onClick={() => openForm(a)}
+                      style={{ flex: 1, background: '#FEF3C7', border: '1px solid #FDE68A', padding: 8, borderRadius: 12, color: '#B45309', cursor: 'pointer', fontWeight: 800, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                    >
+                      <Edit size={15} /> Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(a.id, a.day_title)}
+                      style={{ flex: 1, background: '#FEE2E2', border: '1px solid #FCA5A5', padding: 8, borderRadius: 12, color: '#B91C1C', cursor: 'pointer', fontWeight: 800, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                    >
+                      <Trash2 size={15} /> Delete
+                    </button>
+                  </div>
+                )}
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

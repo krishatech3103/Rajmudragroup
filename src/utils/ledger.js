@@ -113,11 +113,20 @@ export function calculateBankFDSummary(bankFd, today = new Date()) {
       .filter(item => item?.type === 'renew' && item?.renewed_from_id !== undefined && item.renewed_from_id !== null)
       .map(item => String(item.renewed_from_id))
   );
+  const withdrawalsFromRenewedFDs = new Set(
+    asArray(bankFd)
+      .filter(item => item?.type === 'renew' && item?.renewed_from_id !== undefined && item.renewed_from_id !== null)
+      .map(item => String(item.renewed_from_id))
+  );
 
   asArray(bankFd).forEach((item) => {
     const amount = toAmount(item?.amount);
 
     if (renewedSourceIds.has(String(item?.id))) return;
+    if (
+      (item?.type === 'bank_to_cash' || item?.type === 'bank_to_upi')
+      && withdrawalsFromRenewedFDs.has(String(item?.withdrawn_from_id))
+    ) return;
 
     if (item?.type === 'deposit' || item?.type === 'renew' || item?.type === 'cash_to_bank' || item?.type === 'upi_to_bank') {
       totalFD += amount;
@@ -209,6 +218,13 @@ export function calculateTreasuryBalances(year, data = {}) {
       case 'bank_to_upi':
         balances.online += amount;
         break;
+      case 'renew': {
+        const extraAmount = toAmount(record?.renewal_extra_amount);
+        const extraSource = String(record?.renewal_extra_source || '').trim().toLowerCase();
+        if (extraSource === 'cash') balances.cash -= extraAmount;
+        else if (extraAmount > 0) balances.online -= extraAmount;
+        break;
+      }
       default:
         break;
     }

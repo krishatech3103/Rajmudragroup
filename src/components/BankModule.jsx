@@ -1,65 +1,31 @@
 import React, { useState } from 'react';
-import { Landmark, Plus, Search, Edit, Trash2, X, Percent, CreditCard, Lock, Languages, RefreshCw, Receipt, ArrowLeftRight, Download, Banknote } from 'lucide-react';
-import { transliterateText } from '../utils/marathiTransliterate';
+import { Landmark, Plus, Search, Edit, Trash2, X, Lock, RefreshCw, ArrowLeftRight, Download } from 'lucide-react';
 import { createRecord, deleteRecord, updateRecord } from '../services/supabase';
-import { calculateBankFDSummary, calculateTreasuryBalances, deriveYearFromDate, isBankTransferType } from '../utils/ledger';
+import { calculateBankFDSummary, calculateTreasuryBalances, deriveYearFromDate } from '../utils/ledger';
 import { generateBankTreasuryPDF } from '../utils/pdf';
 
 const YEARS = ['2026-27', '2025-26', '2024-25', '2027-28', '2023-24'];
-const MOVEMENT_TITLES = Object.freeze({
-  cash_to_upi: 'Cash to UPI Transfer',
-  upi_to_cash: 'UPI to Cash Transfer',
-  cash_to_bank: 'Cash to Mandal Bank Transfer',
-  upi_to_bank: 'UPI to Mandal Bank FD Transfer',
-  bank_to_cash: 'FD Withdrawal to Cash',
-  bank_to_upi: 'FD Withdrawal to UPI'
-});
-
-const TRANSFER_LOCATIONS = Object.freeze(['Cash', 'UPI / Online', 'Bank / FD']);
-const TRANSFER_TYPE_BY_ROUTE = Object.freeze({
-  'Cash:UPI / Online': 'cash_to_upi',
-  'Cash:Bank / FD': 'cash_to_bank',
-  'UPI / Online:Cash': 'upi_to_cash',
-  'UPI / Online:Bank / FD': 'upi_to_bank',
-  'Bank / FD:Cash': 'bank_to_cash',
-  'Bank / FD:UPI / Online': 'bank_to_upi'
-});
-
-const transferTypeForRoute = (source, destination) => TRANSFER_TYPE_BY_ROUTE[`${source}:${destination}`] || '';
-const transferRouteForType = (entryType) => {
-  const route = Object.entries(TRANSFER_TYPE_BY_ROUTE).find(([, type]) => type === entryType);
-  return route ? route[0].split(':') : null;
-};
-
-const BANK_ENTRY_TITLES = Object.freeze({
-  renew: 'Renew FD (amount includes interest)',
-  bank_income: 'Bank Income / Credit',
-  bank_expense: 'Bank Expense / Debit'
-});
-
 export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} }) {
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState('All');
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [isTransferForm, setIsTransferForm] = useState(false);
+  const [formMode, setFormMode] = useState('new_fd');
 
   // Form State
   const [title, setTitle] = useState('');
   const [type, setType] = useState('deposit');
   const [amount, setAmount] = useState('');
-  const [interestRate, setInterestRate] = useState('7.5');
-  const [expectedReturns, setExpectedReturns] = useState('');
-  const [bankName, setBankName] = useState('Mandal Bank FD Account');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [recordYear, setRecordYear] = useState(activeYear);
-  const [expiryDate, setExpiryDate] = useState('');
-  const [holderName, setHolderName] = useState('');
   const [note, setNote] = useState('');
-  const [transferSource, setTransferSource] = useState('Cash');
-  const [transferDestination, setTransferDestination] = useState('UPI / Online');
   const [renewedFromId, setRenewedFromId] = useState('');
+  const [withdrawnFromId, setWithdrawnFromId] = useState('');
+  const [fdSource, setFdSource] = useState('Cash');
+  const [withdrawDestination, setWithdrawDestination] = useState('Cash');
+  const [renewalExtraAmount, setRenewalExtraAmount] = useState('');
+  const [renewalExtraSource, setRenewalExtraSource] = useState('Cash');
 
   const fdList = Array.isArray(data.bank_fd) ? data.bank_fd : [];
   const fdSummary = calculateBankFDSummary(fdList);
@@ -69,16 +35,25 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
       .filter(item => item?.type === 'renew' && item?.renewed_from_id !== undefined && item.renewed_from_id !== null && String(item.id) !== String(editItem?.id))
       .map(item => String(item.renewed_from_id))
   );
-  const renewableFDs = fdList.filter(item => (
+  const activeFDs = fdList.filter(item => (
     ['deposit', 'renew', 'cash_to_bank', 'upi_to_bank'].includes(item?.type)
     && !renewedSourceIds.has(String(item.id))
-  ));
+  )).map(fd => ({
+    ...fd,
+    available_amount: Number(fd.amount) - fdList
+      .filter(item => ['bank_to_cash', 'bank_to_upi'].includes(item?.type) && String(item.withdrawn_from_id) === String(fd.id) && String(item.id) !== String(editItem?.id))
+      .reduce((sum, item) => sum + Number(item.amount || 0), 0)
+  })).filter(fd => fd.available_amount > 0);
+  const renewableFDs = activeFDs;
 
   const filtered = fdList.filter(item => {
-    const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase()) ||
+    const matchesSearch = String(item.title || '').toLowerCase().includes(search.toLowerCase()) ||
                           (item.bank_name || '').toLowerCase().includes(search.toLowerCase()) ||
                           (item.note || '').toLowerCase().includes(search.toLowerCase());
-    const matchesType = selectedType === 'All' || (selectedType === 'transfer' ? isBankTransferType(item.type) : item.type === selectedType);
+    const matchesType = selectedType === 'All'
+      || (selectedType === 'new_fd' ? ['cash_to_bank', 'upi_to_bank', 'deposit'].includes(item.type) : false)
+      || (selectedType === 'withdraw' ? ['bank_to_cash', 'bank_to_upi', 'withdrawal'].includes(item.type) : false)
+      || item.type === selectedType;
     return matchesSearch && matchesType;
   });
 
@@ -88,33 +63,6 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
     setRecordYear(derived);
   };
 
-  const handleTypeChange = (nextType) => {
-    setIsTransferForm(false);
-    setType(nextType);
-    if (!editItem && (MOVEMENT_TITLES[nextType] || BANK_ENTRY_TITLES[nextType])) {
-      setTitle(MOVEMENT_TITLES[nextType] || BANK_ENTRY_TITLES[nextType]);
-      setBankName(nextType === 'renew' || nextType === 'upi_to_bank' || nextType.startsWith('bank_') ? 'Mandal Bank FD Account' : 'Mandal Treasury');
-      setExpiryDate('');
-      setInterestRate('0');
-      setExpectedReturns('');
-    }
-    if (nextType !== 'renew') setRenewedFromId('');
-  };
-
-  const handleTransferRouteChange = (source, destination) => {
-    if (source === destination) return;
-    const nextType = transferTypeForRoute(source, destination);
-    if (!nextType) return;
-    setTransferSource(source);
-    setTransferDestination(destination);
-    setType(nextType);
-    setTitle(MOVEMENT_TITLES[nextType]);
-    setBankName(source === 'Bank / FD' || destination === 'Bank / FD' ? 'Mandal Bank FD Account' : 'Mandal Treasury');
-    setExpiryDate('');
-    setInterestRate('0');
-    setExpectedReturns('');
-  };
-
   const openForm = (item = null) => {
     if (!isAdmin) return;
     if (item && item.is_locked) {
@@ -122,71 +70,89 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
       return;
     }
     if (item) {
-      const transferRoute = transferRouteForType(item.type);
+      const mode = item.type === 'cash_to_bank' || item.type === 'upi_to_bank'
+        ? 'new_fd'
+        : item.type === 'bank_to_cash' || item.type === 'bank_to_upi'
+          ? 'withdraw_fd'
+          : item.type === 'renew' ? 'renew_fd' : null;
+      if (!mode) {
+        alert('This is a historical bank entry type. It remains in the audit list, but cannot be changed with the simplified FD flow.');
+        return;
+      }
       setEditItem(item);
-      setIsTransferForm(Boolean(transferRoute));
+      setFormMode(mode);
       setTitle(item.title);
       setType(item.type || 'deposit');
       setAmount(item.amount);
-      setInterestRate(item.interest_rate || '7.5');
-      setExpectedReturns(item.expected_returns || '');
-      setBankName(item.bank_name || 'Mandal Bank FD Account');
       setDate(item.date);
       setRecordYear(item.year || activeYear);
-      setExpiryDate(item.expiry_date || '');
-      setHolderName(item.holder_name || '');
       setNote(item.note || '');
       setRenewedFromId(item.renewed_from_id ? String(item.renewed_from_id) : '');
-      setTransferSource(transferRoute?.[0] || 'Cash');
-      setTransferDestination(transferRoute?.[1] || 'UPI / Online');
+      setWithdrawnFromId(item.withdrawn_from_id ? String(item.withdrawn_from_id) : '');
+      setFdSource(item.type === 'upi_to_bank' ? 'UPI' : 'Cash');
+      setWithdrawDestination(item.type === 'bank_to_upi' ? 'UPI' : 'Cash');
+      setRenewalExtraAmount(item.renewal_extra_amount || '');
+      setRenewalExtraSource(item.renewal_extra_source || 'Cash');
     } else {
       const today = new Date().toISOString().split('T')[0];
       setEditItem(null);
-      setIsTransferForm(false);
-      setTitle('Bank Income / Credit');
-      setType('bank_income');
+      setFormMode('new_fd');
+      setTitle('New FD from Cash');
+      setType('cash_to_bank');
       setAmount('');
-      setInterestRate('0');
-      setExpectedReturns('0');
-      setBankName('Mandal Bank FD Account');
       setDate(today);
-      setRecordYear(deriveYearFromDate(today, activeYear));
-      setExpiryDate('');
-      setHolderName('');
+      setRecordYear(activeYear);
       setNote('');
       setRenewedFromId('');
-      setTransferSource('Cash');
-      setTransferDestination('UPI / Online');
+      setWithdrawnFromId('');
+      setFdSource('Cash');
+      setWithdrawDestination('Cash');
+      setRenewalExtraAmount('');
+      setRenewalExtraSource('Cash');
     }
     setShowModal(true);
   };
 
-  const openTransferForm = () => {
+  const openNewFDForm = () => {
     if (!isAdmin) return;
     const today = new Date().toISOString().split('T')[0];
     setEditItem(null);
-    setIsTransferForm(true);
-    setTransferSource('Cash');
-    setTransferDestination('UPI / Online');
-    setType('cash_to_upi');
-    setTitle(MOVEMENT_TITLES.cash_to_upi);
+    setFormMode('new_fd');
+    setFdSource('Cash');
+    setType('cash_to_bank');
+    setTitle('New FD from Cash');
     setAmount('');
-    setInterestRate('0');
-    setExpectedReturns('');
-    setBankName('Mandal Treasury');
     setDate(today);
-    setRecordYear(deriveYearFromDate(today, activeYear));
-    setExpiryDate('');
-    setHolderName('');
+    setRecordYear(activeYear);
     setNote('');
     setRenewedFromId('');
+    setWithdrawnFromId('');
+    setRenewalExtraAmount('');
+    setRenewalExtraSource('Cash');
     setShowModal(true);
+  };
+
+  const openWithdrawFDForm = () => {
+    openNewFDForm();
+    setFormMode('withdraw_fd');
+    setType('bank_to_cash');
+    setTitle('FD Withdrawal to Cash');
+    setWithdrawDestination('Cash');
+    setWithdrawnFromId('');
+  };
+
+  const openRenewFDForm = () => {
+    openNewFDForm();
+    setFormMode('renew_fd');
+    setType('renew');
+    setTitle('FD Renewal');
+    setRenewedFromId('');
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!title.trim() || !amount) {
-      alert('Title and amount are required!');
+    if (!amount) {
+      alert('Amount is required!');
       return;
     }
 
@@ -196,34 +162,48 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
       return;
     }
 
-    const entryType = isTransferForm ? transferTypeForRoute(transferSource, transferDestination) : type;
-    if (!entryType) {
-      alert('Choose two different transfer locations.');
+    const entryType = formMode === 'new_fd'
+      ? (fdSource === 'Cash' ? 'cash_to_bank' : 'upi_to_bank')
+      : formMode === 'withdraw_fd'
+        ? (withdrawDestination === 'Cash' ? 'bank_to_cash' : 'bank_to_upi')
+        : formMode === 'renew_fd' ? 'renew' : type;
+
+    if (formMode === 'renew_fd' && !renewedFromId) {
+      alert('Select the FD that is being renewed.');
       return;
     }
-
-    if (entryType === 'renew' && !renewedFromId) {
-      alert('Select the FD that is being renewed.');
+    if (formMode === 'withdraw_fd' && !withdrawnFromId) {
+      alert('Select the FD to withdraw from.');
       return;
     }
 
     // Prevent a new transfer from moving more than the currently calculated
     // fund balance. Historical-year edits remain allowed because this screen
     // only has the active year's income and expense rows in memory.
-    if (!editItem && recordYear === activeYear && isBankTransferType(entryType)) {
-      const sourceBalance = entryType === 'cash_to_upi' || entryType === 'cash_to_bank'
-        ? treasuryBalances.cash
-        : entryType === 'upi_to_cash' || entryType === 'upi_to_bank'
-          ? treasuryBalances.online
-          : fdSummary.current_fd_balance;
+    if (!editItem && recordYear === activeYear && formMode === 'new_fd') {
+      const sourceBalance = fdSource === 'Cash' ? treasuryBalances.cash : treasuryBalances.online;
       if (numAmt > sourceBalance) {
-        alert(`Transfer amount is greater than the available source balance (Rs. ${sourceBalance.toLocaleString('en-IN')}).`);
+        alert(`New FD amount is greater than the available ${fdSource} balance (Rs. ${sourceBalance.toLocaleString('en-IN')}).`);
         return;
       }
     }
 
-    if (!editItem && entryType === 'bank_expense' && numAmt > fdSummary.current_fd_balance) {
-      alert(`Bank expense is greater than the available Bank / FD balance (Rs. ${fdSummary.current_fd_balance.toLocaleString('en-IN')}).`);
+    const selectedFD = activeFDs.find(fd => String(fd.id) === String(formMode === 'withdraw_fd' ? withdrawnFromId : renewedFromId));
+    if (!editItem && formMode === 'withdraw_fd' && (!selectedFD || numAmt > selectedFD.available_amount)) {
+      alert(`Withdrawal is greater than the selected FD balance (Rs. ${(selectedFD?.available_amount || 0).toLocaleString('en-IN')}).`);
+      return;
+    }
+
+    const extraAmount = Number(renewalExtraAmount) || 0;
+    if (formMode === 'renew_fd' && extraAmount > 0) {
+      const sourceBalance = renewalExtraSource === 'Cash' ? treasuryBalances.cash : treasuryBalances.online;
+      if (extraAmount > sourceBalance) {
+        alert(`Renewal top-up is greater than the available ${renewalExtraSource} balance (Rs. ${sourceBalance.toLocaleString('en-IN')}).`);
+        return;
+      }
+    }
+    if (formMode === 'renew_fd' && selectedFD && numAmt < selectedFD.available_amount + extraAmount) {
+      alert('Renewed FD total must include the selected FD balance and any top-up amount.');
       return;
     }
 
@@ -232,13 +212,16 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
       type: entryType,
       year: recordYear || deriveYearFromDate(date, activeYear),
       amount: numAmt,
-      interest_rate: Number(interestRate) || 0,
-      expected_returns: Number(expectedReturns) || 0,
-      bank_name: bankName.trim(),
+      interest_rate: 0,
+      expected_returns: 0,
+      bank_name: 'Mandal Bank FD Account',
       date,
-      expiry_date: expiryDate || null,
+      expiry_date: null,
       renewed_from_id: entryType === 'renew' ? Number(renewedFromId) : null,
-      holder_name: holderName.trim(),
+      withdrawn_from_id: ['bank_to_cash', 'bank_to_upi'].includes(entryType) ? Number(withdrawnFromId) : null,
+      renewal_extra_amount: entryType === 'renew' ? extraAmount : 0,
+      renewal_extra_source: entryType === 'renew' && extraAmount > 0 ? renewalExtraSource : '',
+      holder_name: '',
       note: note.trim()
     };
 
@@ -248,32 +231,6 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
         ? await updateRecord('bank_fd', editItem.id, payload)
         : await createRecord('bank_fd', payload);
       onUpdate?.({ table: 'bank_fd', eventType: 'UPSERT', record });
-
-      // Keep the existing FD-expense feature, but make both server writes
-      // explicit and awaited. A failed companion expense rolls back the just
-      // created Bank FD row so an incomplete transaction is not left behind.
-      if (!editItem && entryType === 'fd_expense') {
-        try {
-          const expenseRecord = await createRecord('kharch', {
-            title: `[FD Withdrawal Expense] ${payload.title}`,
-            category: 'Miscellaneous Expenses',
-            year: payload.year,
-            amount: payload.amount,
-            date: payload.date,
-            payment_mode: 'Online',
-            note: `Auto-recorded from Bank FD withdrawal for expense: ${payload.note || ''}`.trim()
-          });
-          onUpdate?.({ table: 'kharch', eventType: 'UPSERT', record: expenseRecord });
-        } catch (expenseError) {
-          try {
-            await deleteRecord('bank_fd', record.id);
-            onUpdate?.({ table: 'bank_fd', eventType: 'DELETE', id: record.id });
-          } catch (rollbackError) {
-            console.error('Could not roll back incomplete FD expense:', rollbackError);
-          }
-          throw new Error(`The companion expense could not be saved, so the bank entry was rolled back. ${expenseError.message}`);
-        }
-      }
 
       setShowModal(false);
     } catch (error) {
@@ -301,29 +258,14 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
 
   const getTypeLabel = (t) => {
     switch (t) {
-      case 'deposit': return { label: 'FD Deposit / New FD (नवीन ठेव पावती)', color: '#059669', bg: '#ECFDF5', icon: <Landmark size={18} /> };
-      case 'renew': return { label: 'FD Renew (ठेव नूतनीकरण)', color: '#D97706', bg: '#FEF3C7', icon: <RefreshCw size={18} /> };
-      case 'interest': return { label: 'FD Interest Received (ठेवीवरील व्याज)', color: '#2563EB', bg: '#EFF6FF', icon: <Percent size={18} /> };
-      case 'bank_income': return { label: 'Bank Income / Credit (वर्षाच्या जमा पासून वेगळे)', color: '#059669', bg: '#ECFDF5', icon: <Landmark size={18} /> };
-      case 'bank_expense': return { label: 'Bank Expense / Debit (वर्षाच्या खर्चापासून वेगळे)', color: '#DC2626', bg: '#FEF2F2', icon: <Receipt size={18} /> };
-      case 'withdrawal': return { label: 'FD Cash Withdrawal (ठेव रोख काढली)', color: '#DC2626', bg: '#FEF2F2', icon: <Landmark size={18} /> };
-      case 'fd_expense': return { label: 'FD Withdrawal for Expense (ठेव मोडून खर्च करणे)', color: '#9333EA', bg: '#F3E8FF', icon: <Receipt size={18} /> };
-      case 'charge': return { label: 'Bank Charge / Fee (बँक फी)', color: '#D97706', bg: '#FFFBEB', icon: <CreditCard size={18} /> };
-      case 'cash_to_upi': return { label: 'Transfer: Cash → UPI', color: '#2563EB', bg: '#EFF6FF', icon: <ArrowLeftRight size={18} /> };
-      case 'upi_to_cash': return { label: 'Transfer: UPI → Cash', color: '#2563EB', bg: '#EFF6FF', icon: <ArrowLeftRight size={18} /> };
-      case 'cash_to_bank': return { label: 'Transfer: Cash → Mandal Bank', color: '#047857', bg: '#ECFDF5', icon: <Landmark size={18} /> };
-      case 'upi_to_bank': return { label: 'Transfer: UPI → Mandal Bank', color: '#047857', bg: '#ECFDF5', icon: <Landmark size={18} /> };
-      case 'bank_to_cash': return { label: 'FD Withdrawal → Cash', color: '#D97706', bg: '#FFFBEB', icon: <Banknote size={18} /> };
-      case 'bank_to_upi': return { label: 'FD Withdrawal → UPI', color: '#D97706', bg: '#FFFBEB', icon: <CreditCard size={18} /> };
-      default: return { label: 'Bank Entry', color: '#475569', bg: '#F8FAFC', icon: <Landmark size={18} /> };
+      case 'cash_to_bank': return { label: 'New FD from Cash', color: '#047857', bg: '#ECFDF5' };
+      case 'upi_to_bank': return { label: 'New FD from UPI', color: '#047857', bg: '#ECFDF5' };
+      case 'renew': return { label: 'FD Renewal', color: '#B45309', bg: '#FFFBEB' };
+      case 'bank_to_cash': return { label: 'FD Withdrawal to Cash', color: '#B45309', bg: '#FFFBEB' };
+      case 'bank_to_upi': return { label: 'FD Withdrawal to UPI', color: '#B45309', bg: '#FFFBEB' };
+      default: return { label: 'Historical bank entry', color: '#475569', bg: '#F8FAFC' };
     }
   };
-
-  const holderFieldLabel = ['cash_to_upi', 'bank_to_upi'].includes(type)
-    ? 'UPI Holder (optional)'
-    : ['upi_to_cash', 'bank_to_cash'].includes(type)
-      ? 'Cash Holder (optional)'
-      : 'Handled By (optional)';
 
   return (
     <div style={{ width: '100%', boxSizing: 'border-box' }} className="animate-fade-in">
@@ -331,7 +273,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
       <div style={{
         background: 'linear-gradient(135deg, #065F46 0%, #047857 50%, #059669 100%)',
         color: '#ffffff',
-        padding: '22px 24px',
+        padding: '18px 20px',
         borderRadius: 26,
         display: 'flex',
         alignItems: 'center',
@@ -341,18 +283,15 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
         marginBottom: 20,
         boxShadow: '0 14px 35px rgba(5, 150, 105, 0.3)'
       }}>
-        <div style={{ flex: 1, minWidth: 200 }}>
+        <div style={{ flex: 1, minWidth: 150 }}>
           <h2 style={{ fontSize: 20, fontWeight: 900, margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Landmark size={24} color="#A7F3D0" /> Mandal Bank FD & Treasury
+            <Landmark size={24} color="#A7F3D0" /> Mandal Bank FD
           </h2>
-          <span style={{ fontSize: 13, opacity: 0.9, fontWeight: 600, display: 'block', marginTop: 4 }}>
-            मंडळ बँक व एफडी नोंद व्यवस्थापन
-          </span>
         </div>
 
         <div style={{ textAlign: 'right', minWidth: 'fit-content' }}>
           <span style={{ fontSize: 11, opacity: 0.85, fontWeight: 800, textTransform: 'uppercase', display: 'block' }}>
-            ALL-TIME BANK / FD BALANCE
+            ALL-TIME FD BALANCE
           </span>
           <p style={{ fontSize: 26, fontWeight: 900, margin: '2px 0 0 0', letterSpacing: -0.5 }}>
             Rs. {fdSummary.current_fd_balance.toLocaleString('en-IN')}
@@ -362,7 +301,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
 
       {/* Filter Tabs Pills */}
       <div data-disable-page-swipe="true" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 16 }}>
-        {['All', 'transfer', 'renew', 'bank_income', 'bank_expense'].map(t => (
+        {['All', 'new_fd', 'renew', 'withdraw'].map(t => (
           <button
             key={t}
             onClick={() => setSelectedType(t)}
@@ -372,7 +311,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
               borderColor: selectedType === t ? '#047857' : undefined
             }}
           >
-            {t === 'All' ? 'All Transactions' : t === 'transfer' ? 'Transfers' : t === 'renew' ? 'FD Renewals' : t === 'bank_income' ? 'Bank Credit' : 'Bank Debit'}
+            {t === 'All' ? 'All Entries' : t === 'new_fd' ? 'New FDs' : t === 'renew' ? 'Renewals' : 'Withdrawals'}
           </button>
         ))}
       </div>
@@ -385,7 +324,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
             type="text"
             className="input-field"
             style={{ paddingLeft: 46, borderRadius: 16 }}
-            placeholder="Search bank entries or bank name..."
+            placeholder="Search FD entries or notes..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -400,23 +339,11 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
         </button>
 
         {isAdmin && (
-          <button
-            className="btn btn-secondary"
-            onClick={openTransferForm}
-            style={{ width: 'auto', padding: '0 18px', borderRadius: 16, display: 'flex', alignItems: 'center', gap: 7 }}
-          >
-            <ArrowLeftRight size={18} /> Transfer
-          </button>
-        )}
-
-        {isAdmin && (
-          <button
-            className="btn btn-success"
-            onClick={() => openForm()}
-            style={{ width: 'auto', padding: '0 22px', borderRadius: 16, background: '#047857', borderColor: '#047857' }}
-          >
-            <Plus size={20} /> Other Bank Entry
-          </button>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, width: '100%' }}>
+            <button className="btn btn-success" onClick={openNewFDForm} style={{ padding: '11px 8px', borderRadius: 14, background: '#047857', borderColor: '#047857', fontSize: 12 }}><Plus size={16} /> New FD</button>
+            <button className="btn btn-secondary" onClick={openWithdrawFDForm} style={{ padding: '11px 8px', borderRadius: 14, fontSize: 12 }}><ArrowLeftRight size={16} /> Withdraw</button>
+            <button className="btn btn-secondary" onClick={openRenewFDForm} style={{ padding: '11px 8px', borderRadius: 14, fontSize: 12 }}><RefreshCw size={16} /> Renew FD</button>
+          </div>
         )}
       </div>
 
@@ -426,7 +353,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
           <Landmark size={56} color="#CBD5E1" style={{ margin: '0 auto 12px auto' }} />
           <p style={{ fontSize: 15, fontWeight: 700 }}>No bank entries added yet.</p>
           <p style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>
-            Use Transfer to add or withdraw FD money, or add a renewal / bank adjustment.
+            Add a New FD from Cash/UPI, withdraw a selected FD, or renew a selected FD.
           </p>
         </div>
       ) : (
@@ -434,64 +361,32 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
           {filtered.map(item => {
             const meta = getTypeLabel(item.type);
             const isNegative = item.type === 'withdrawal' || item.type === 'charge' || item.type === 'fd_expense' || item.type === 'bank_expense' || item.type === 'bank_to_cash' || item.type === 'bank_to_upi';
-            const isTransfer = isBankTransferType(item.type);
+            const isLinkedToRenewal = fdList.some(record => (
+              String(record?.renewed_from_id) === String(item.id)
+              || (['bank_to_cash', 'bank_to_upi'].includes(item.type) && String(record?.renewed_from_id) === String(item.withdrawn_from_id))
+            ));
 
             return (
-              <div key={item.id} className="luxe-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <div style={{
-                    width: 48, height: 48, borderRadius: 16, background: meta.bg,
-                    color: meta.color, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0
-                  }}>
-                    {meta.icon}
+              <div key={item.id} className="luxe-card" style={{ display: 'flex', gap: 12, alignItems: 'flex-start', justifyContent: 'space-between', padding: '14px 15px' }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{ background: meta.bg, color: meta.color, borderRadius: 8, padding: '3px 7px', fontSize: 11, fontWeight: 900 }}>{meta.label}</span>
+                    {item.is_locked && <span style={{ color: '#B45309', fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 3 }}><Lock size={11} /> Audit</span>}
                   </div>
-
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      <h4 style={{ fontSize: 16, fontWeight: 900, margin: 0, color: '#0F172A' }}>{item.title}</h4>
-                      <span style={{ background: '#F1F5F9', border: '1px solid #CBD5E1', color: '#475569', padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 800 }}>
-                        Year {item.year}
-                      </span>
-                      {item.is_locked && (
-                        <span style={{ background: '#FFF7ED', border: '1px solid #FFEDD5', color: '#D84315', padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <Lock size={12} /> Audit Record
-                        </span>
-                      )}
-                    </div>
-                    <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, margin: '4px 0 0 0' }}>
-                      {meta.label} • {new Date(item.date).toLocaleDateString('en-IN')} {item.bank_name ? `• ${item.bank_name}` : ''}
-                    </p>
-                    {item.holder_name && (
-                      <p style={{ fontSize: 11, color: '#475569', fontWeight: 700, margin: '2px 0 0 0' }}>
-                        Held by: {item.holder_name}
-                      </p>
-                    )}
-                  </div>
+                  <h4 style={{ fontSize: 16, fontWeight: 900, margin: '7px 0 0', color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</h4>
+                  <p style={{ fontSize: 12, color: '#64748B', fontWeight: 700, margin: '3px 0 0' }}>{item.year} • {new Date(item.date).toLocaleDateString('en-IN')}</p>
+                  {item.note && <p style={{ fontSize: 12, color: '#475569', margin: '5px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Note: {item.note}</p>}
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                  <span style={{ fontSize: 17, fontWeight: 900, color: isNegative ? '#DC2626' : '#059669', marginRight: 4 }}>
-                    {isTransfer ? '↔' : isNegative ? '-' : '+'} Rs. {Number(item.amount).toLocaleString('en-IN')}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+                  <span style={{ fontSize: 17, fontWeight: 900, color: isNegative ? '#DC2626' : '#059669', whiteSpace: 'nowrap' }}>
+                    {isNegative ? '-' : '+'} Rs. {Number(item.amount).toLocaleString('en-IN')}
                   </span>
-
-                  {isAdmin && !item.is_locked && (
-                    <>
-                      <button
-                        onClick={() => openForm(item)}
-                        style={{ background: '#FEF3C7', border: '1px solid #FDE68A', padding: 9, borderRadius: 12, color: '#B45309', cursor: 'pointer' }}
-                        title="Edit entry"
-                      >
-                        <Edit size={17} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(item.id, item.title, item.is_locked)}
-                        style={{ background: '#FEE2E2', border: '1px solid #FCA5A5', padding: 9, borderRadius: 12, color: '#B91C1C', cursor: 'pointer' }}
-                        title="Delete entry"
-                      >
-                        <Trash2 size={17} />
-                      </button>
-                    </>
+                  {isAdmin && !item.is_locked && !isLinkedToRenewal && (
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => openForm(item)} style={{ background: '#FEF3C7', border: '1px solid #FDE68A', padding: 7, borderRadius: 9, color: '#B45309', cursor: 'pointer' }} title="Edit entry"><Edit size={15} /></button>
+                      <button onClick={() => handleDelete(item.id, item.title, item.is_locked)} style={{ background: '#FEE2E2', border: '1px solid #FCA5A5', padding: 7, borderRadius: 9, color: '#B91C1C', cursor: 'pointer' }} title="Delete entry"><Trash2 size={15} /></button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -507,7 +402,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
             <div className="sheet-pill" />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <h3 style={{ fontSize: 18, fontWeight: 900, color: '#047857' }}>
-                {isTransferForm ? (editItem ? 'Edit Transfer' : 'Record Transfer') : editItem ? 'Edit Bank Transaction' : 'Record New Bank / FD Entry'}
+                {formMode === 'new_fd' ? (editItem ? 'Edit New FD' : 'Add New FD') : formMode === 'withdraw_fd' ? (editItem ? 'Edit FD Withdrawal' : 'Withdraw FD') : (editItem ? 'Edit FD Renewal' : 'Renew FD')}
               </h3>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
                 <X size={22} color="#64748B" />
@@ -515,77 +410,42 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
             </div>
 
             <form onSubmit={handleSave}>
-              {isTransferForm ? (
+              {formMode === 'new_fd' && (
                 <div className="input-group">
-                  <label className="input-label">Move Money *</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <label style={{ display: 'block' }}>
-                      <span style={{ display: 'block', marginBottom: 5, color: '#64748B', fontSize: 11, fontWeight: 800 }}>FROM</span>
-                      <select className="input-field" value={transferSource} onChange={event => {
-                        const nextSource = event.target.value;
-                        const nextDestination = nextSource === transferDestination
-                          ? TRANSFER_LOCATIONS.find(location => location !== nextSource)
-                          : transferDestination;
-                        handleTransferRouteChange(nextSource, nextDestination);
-                      }}>
-                        {TRANSFER_LOCATIONS.map(location => <option key={location} value={location}>{location}</option>)}
-                      </select>
-                    </label>
-                    <label style={{ display: 'block' }}>
-                      <span style={{ display: 'block', marginBottom: 5, color: '#64748B', fontSize: 11, fontWeight: 800 }}>TO</span>
-                      <select className="input-field" value={transferDestination} onChange={event => handleTransferRouteChange(transferSource, event.target.value)}>
-                        {TRANSFER_LOCATIONS.filter(location => location !== transferSource).map(location => <option key={location} value={location}>{location}</option>)}
-                      </select>
-                    </label>
+                  <label className="input-label">Fund new FD from *</label>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    {['Cash', 'UPI'].map(source => <button key={source} type="button" onClick={() => { setFdSource(source); setType(source === 'Cash' ? 'cash_to_bank' : 'upi_to_bank'); setTitle(`New FD from ${source}`); }} style={{ flex: 1, padding: 11, borderRadius: 12, border: fdSource === source ? '2px solid #047857' : '1px solid #CBD5E1', background: fdSource === source ? '#ECFDF5' : '#ffffff', color: fdSource === source ? '#047857' : '#64748B', fontWeight: 800, cursor: 'pointer' }}>{source}</button>)}
                   </div>
-                  <p style={{ margin: '7px 0 0', color: '#475569', fontSize: 12, fontWeight: 700 }}>From → To. The source balance is checked before saving.</p>
+                  <p style={{ margin: '7px 0 0', color: '#475569', fontSize: 12, fontWeight: 700 }}>Money moves from the selected current-year fund into this FD.</p>
                 </div>
-              ) : (
-              <div className="input-group">
-                <label className="input-label">Bank Entry Type *</label>
-                <select
-                  className="input-field"
-                  value={type}
-                  onChange={e => handleTypeChange(e.target.value)}
-                  disabled={!!editItem}
-                >
-                  <optgroup label="Bank and FD entries">
-                  <option value="renew">FD Renew</option>
-                  <option value="bank_income">Bank Income / Credit (separate from yearly income)</option>
-                  <option value="bank_expense">Bank Expense / Debit (separate from yearly expenses)</option>
-                  {editItem && ['deposit', 'interest', 'withdrawal', 'fd_expense', 'charge'].includes(type) && <option value={type}>Existing: {getTypeLabel(type).label}</option>}
-                  </optgroup>
-                </select>
-              </div>
+              )}
+
+              {formMode === 'withdraw_fd' && (
+                <div className="input-group">
+                  <label className="input-label">Withdraw from FD *</label>
+                  <select className="input-field" value={withdrawnFromId} onChange={event => setWithdrawnFromId(event.target.value)} required>
+                    <option value="">Select FD</option>
+                    {activeFDs.map(fd => <option key={fd.id} value={fd.id}>{fd.title} — Available Rs. {fd.available_amount.toLocaleString('en-IN')}</option>)}
+                  </select>
+                  <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+                    {['Cash', 'UPI'].map(destination => <button key={destination} type="button" onClick={() => { setWithdrawDestination(destination); setType(destination === 'Cash' ? 'bank_to_cash' : 'bank_to_upi'); setTitle(`FD Withdrawal to ${destination}`); }} style={{ flex: 1, padding: 11, borderRadius: 12, border: withdrawDestination === destination ? '2px solid #D97706' : '1px solid #CBD5E1', background: withdrawDestination === destination ? '#FFFBEB' : '#ffffff', color: withdrawDestination === destination ? '#B45309' : '#64748B', fontWeight: 800, cursor: 'pointer' }}>To {destination}</button>)}
+                  </div>
+                </div>
+              )}
+
+              {formMode === 'renew_fd' && (
+                <div className="input-group">
+                  <label className="input-label">FD Being Renewed *</label>
+                  <select className="input-field" value={renewedFromId} onChange={event => setRenewedFromId(event.target.value)} required>
+                    <option value="">Select the old FD</option>
+                    {renewableFDs.map(fd => <option key={fd.id} value={fd.id}>{fd.title} — Available Rs. {fd.available_amount.toLocaleString('en-IN')}</option>)}
+                  </select>
+                  <p style={{ margin: '7px 0 0', color: '#475569', fontSize: 12, fontWeight: 700 }}>The final renewed total replaces this selected FD, so its balance is never counted twice.</p>
+                </div>
               )}
 
               <div className="input-group">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <label className="input-label" style={{ margin: 0 }}>Title / Description *</label>
-                  <button
-                    type="button"
-                    onClick={() => { if (title) setTitle(transliterateText(title)); }}
-                    style={{
-                      background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: 10,
-                      color: '#059669', padding: '3px 9px', fontSize: 11, fontWeight: 800,
-                      cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4
-                    }}
-                  >
-                    <Languages size={13} /> मराठीत रुपांतरित करा
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  className="input-field"
-                  value={title}
-                  onChange={e => setTitle(e.target.value)}
-                  placeholder="e.g. FD Renewal 2025"
-                  required
-                />
-              </div>
-
-              <div className="input-group">
-                <label className="input-label">Amount (Rs.) *</label>
+                <label className="input-label">{formMode === 'renew_fd' ? 'Final renewed FD total (Rs.) *' : 'Amount (Rs.) *'}</label>
                 <input
                   type="number"
                   className="input-field"
@@ -595,6 +455,21 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
                   required
                 />
               </div>
+
+              {formMode === 'renew_fd' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div className="input-group">
+                    <label className="input-label">Add extra money (optional)</label>
+                    <input type="number" min="0" className="input-field" value={renewalExtraAmount} onChange={event => setRenewalExtraAmount(event.target.value)} placeholder="e.g. 5000" />
+                  </div>
+                  <div className="input-group">
+                    <label className="input-label">Extra money from</label>
+                    <select className="input-field" value={renewalExtraSource} onChange={event => setRenewalExtraSource(event.target.value)} disabled={!renewalExtraAmount || Number(renewalExtraAmount) <= 0}>
+                      <option value="Cash">Cash</option><option value="UPI">UPI</option>
+                    </select>
+                  </div>
+                </div>
+              )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div className="input-group">
@@ -622,78 +497,19 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
                 </div>
               </div>
 
-              {type === 'renew' && !isTransferForm && (
-                <div className="input-group">
-                  <label className="input-label">FD Being Renewed *</label>
-                  <select className="input-field" value={renewedFromId} onChange={event => setRenewedFromId(event.target.value)} required>
-                    <option value="">Select the old FD</option>
-                    {renewableFDs.map(fd => (
-                      <option key={fd.id} value={fd.id}>
-                        {fd.title} — Rs. {Number(fd.amount).toLocaleString('en-IN')} ({new Date(fd.date).toLocaleDateString('en-IN')})
-                      </option>
-                    ))}
-                  </select>
-                  <p style={{ margin: '7px 0 0', color: '#475569', fontSize: 12, fontWeight: 700 }}>Enter the renewed total above, including credited interest. The old FD is replaced, not added again.</p>
-                </div>
-              )}
-
-              {!isTransferForm && <div className="input-group">
-                <label className="input-label">Bank / Branch Name</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  value={bankName}
-                  onChange={e => setBankName(e.target.value)}
-                  placeholder="e.g. State Bank of India / Mandal Account"
-                />
-              </div>}
-
-              {isBankTransferType(type) && (
-                <div className="input-group">
-                  <label className="input-label">{holderFieldLabel}</label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    value={holderName}
-                    onChange={e => setHolderName(e.target.value)}
-                    placeholder="e.g. Sandip Pujari / Treasurer"
-                  />
-                </div>
-              )}
-
-              {(type === 'bank_income' || type === 'bank_expense') && (
-                <div style={{ background: type === 'bank_income' ? '#ECFDF5' : '#FEF2F2', border: `1px solid ${type === 'bank_income' ? '#A7F3D0' : '#FECACA'}`, padding: 12, borderRadius: 14, marginBottom: 14, fontSize: 12, color: type === 'bank_income' ? '#065F46' : '#991B1B', fontWeight: 700 }}>
-                  {type === 'bank_income'
-                    ? 'This increases the Bank / FD ledger only. It does not increase the selected year’s donations or other income.'
-                    : 'This reduces the Bank / FD ledger only. It does not increase the selected year’s festival expenses.'}
-                </div>
-              )}
-
               <div className="input-group">
-                <label className="input-label">Note / Receipt Ref</label>
+                <label className="input-label">Important Note / Receipt Ref</label>
                 <input
                   type="text"
                   className="input-field"
                   value={note}
                   onChange={e => setNote(e.target.value)}
-                  placeholder="Additional receipt details"
+                  placeholder="e.g. receipt no., reason, or reminder"
                 />
               </div>
 
-              {type === 'fd_expense' && (
-                <div style={{ background: '#F3E8FF', border: '1px solid #E9D5FF', padding: 12, borderRadius: 14, marginBottom: 14, fontSize: 12, color: '#6B21A8', fontWeight: 700 }}>
-                  💡 This will deduct Rs. {amount || 0} from Bank FD balance and automatically post a corresponding expense entry into the Mandal Expenses ledger!
-                </div>
-              )}
-
-              {isBankTransferType(type) && (
-                <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', padding: 12, borderRadius: 14, marginBottom: 14, fontSize: 12, color: '#1D4ED8', fontWeight: 700 }}>
-                  ↔ This records a fund transfer only. It does not add income or expense. Transfers into Mandal Bank / FD increase the all-time Bank & Treasury balance.
-                </div>
-              )}
-
               <button type="submit" className="btn btn-success" disabled={isSaving} style={{ marginTop: 14, width: '100%', background: '#047857', borderColor: '#047857', opacity: isSaving ? 0.7 : 1 }}>
-                {isSaving ? 'Saving to Supabase…' : editItem ? 'Update Bank Entry' : 'Save Bank Entry'}
+                {isSaving ? 'Saving to Supabase…' : editItem ? 'Update FD Entry' : formMode === 'new_fd' ? 'Add New FD' : formMode === 'withdraw_fd' ? 'Withdraw Selected FD' : 'Renew Selected FD'}
               </button>
             </form>
           </div>
