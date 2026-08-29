@@ -44,6 +44,8 @@ Supabase-backed accounts, member donations, income/expenses, Aarti schedules, ba
 
 7. Before deploying the database-enforced balance protection, run [supabase_financial_integrity.sql](./supabase_financial_integrity.sql). It blocks invalid Cash/UPI expenses, transfers, and Bank/FD debits even when multiple devices are used.
 
+8. Before using the simplified FD renewal form, run [supabase_fd_renewal.sql](./supabase_fd_renewal.sql). It links each renewal to its old FD so the renewed total, including interest, replaces rather than double-counts that FD.
+
 ## Secure login: admin and view-only users
 
 The app now uses a username-and-password screen backed by Supabase Auth, not a browser PIN. Supabase stores password hashes and the database enforces permissions:

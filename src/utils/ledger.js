@@ -106,12 +106,22 @@ export function calculateBankFDSummary(bankFd, today = new Date()) {
     ? today.toISOString().slice(0, 10)
     : new Date().toISOString().slice(0, 10);
 
+  // A renewal replaces its selected old FD with the renewed total. Excluding
+  // the old source prevents its principal from being counted a second time.
+  const renewedSourceIds = new Set(
+    asArray(bankFd)
+      .filter(item => item?.type === 'renew' && item?.renewed_from_id !== undefined && item.renewed_from_id !== null)
+      .map(item => String(item.renewed_from_id))
+  );
+
   asArray(bankFd).forEach((item) => {
     const amount = toAmount(item?.amount);
 
+    if (renewedSourceIds.has(String(item?.id))) return;
+
     if (item?.type === 'deposit' || item?.type === 'renew' || item?.type === 'cash_to_bank' || item?.type === 'upi_to_bank') {
       totalFD += amount;
-      if (item?.type === 'deposit' || item?.type === 'renew') {
+      if (item?.type === 'deposit') {
         expectedReturns += toAmount(item.expected_returns);
       }
     } else if (item?.type === 'interest') {

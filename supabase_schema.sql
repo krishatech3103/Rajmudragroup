@@ -99,6 +99,7 @@ CREATE TABLE IF NOT EXISTS public.bank_fd (
     bank_name TEXT NOT NULL DEFAULT 'Mandal Bank FD Account',
     date DATE NOT NULL,
     expiry_date DATE,
+    renewed_from_id BIGINT REFERENCES public.bank_fd(id),
     holder_name TEXT NOT NULL DEFAULT '',
     note TEXT NOT NULL DEFAULT '',
     is_locked BOOLEAN NOT NULL DEFAULT FALSE,
@@ -135,6 +136,7 @@ ALTER TABLE public.kharch ADD COLUMN IF NOT EXISTS payment_mode TEXT NOT NULL DE
 ALTER TABLE public.aarti ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 ALTER TABLE public.bank_fd ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 ALTER TABLE public.bank_fd ADD COLUMN IF NOT EXISTS holder_name TEXT NOT NULL DEFAULT '';
+ALTER TABLE public.bank_fd ADD COLUMN IF NOT EXISTS renewed_from_id BIGINT REFERENCES public.bank_fd(id);
 
 -- Upgrade the original `BIGINT PRIMARY KEY` columns to generated identities
 -- without changing their type or existing values.

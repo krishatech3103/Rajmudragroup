@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { Landmark, Plus, Search, Edit, Trash2, X, Percent, CreditCard, Lock, Languages, RefreshCw, Calendar, AlertTriangle, Receipt, ArrowLeftRight, Download, Banknote } from 'lucide-react';
+import { Landmark, Plus, Search, Edit, Trash2, X, Percent, CreditCard, Lock, Languages, RefreshCw, Receipt, ArrowLeftRight, Download, Banknote } from 'lucide-react';
 import { transliterateText } from '../utils/marathiTransliterate';
 import { createRecord, deleteRecord, updateRecord } from '../services/supabase';
 import { calculateBankFDSummary, calculateTreasuryBalances, deriveYearFromDate, isBankTransferType } from '../utils/ledger';
 import { generateBankTreasuryPDF } from '../utils/pdf';
-import CollapsibleSection from './CollapsibleSection';
 
 const YEARS = ['2026-27', '2025-26', '2024-25', '2027-28', '2023-24'];
 const MOVEMENT_TITLES = Object.freeze({
@@ -33,6 +32,7 @@ const transferRouteForType = (entryType) => {
 };
 
 const BANK_ENTRY_TITLES = Object.freeze({
+  renew: 'Renew FD (amount includes interest)',
   bank_income: 'Bank Income / Credit',
   bank_expense: 'Bank Expense / Debit'
 });
@@ -59,11 +59,20 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
   const [note, setNote] = useState('');
   const [transferSource, setTransferSource] = useState('Cash');
   const [transferDestination, setTransferDestination] = useState('UPI / Online');
+  const [renewedFromId, setRenewedFromId] = useState('');
 
   const fdList = Array.isArray(data.bank_fd) ? data.bank_fd : [];
   const fdSummary = calculateBankFDSummary(fdList);
   const treasuryBalances = calculateTreasuryBalances(activeYear, data);
-  const hasMaturityDetails = Number(fdSummary.expected_returns) > 0 || fdSummary.expired_count > 0;
+  const renewedSourceIds = new Set(
+    fdList
+      .filter(item => item?.type === 'renew' && item?.renewed_from_id !== undefined && item.renewed_from_id !== null && String(item.id) !== String(editItem?.id))
+      .map(item => String(item.renewed_from_id))
+  );
+  const renewableFDs = fdList.filter(item => (
+    ['deposit', 'renew', 'cash_to_bank', 'upi_to_bank'].includes(item?.type)
+    && !renewedSourceIds.has(String(item.id))
+  ));
 
   const filtered = fdList.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -84,11 +93,12 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
     setType(nextType);
     if (!editItem && (MOVEMENT_TITLES[nextType] || BANK_ENTRY_TITLES[nextType])) {
       setTitle(MOVEMENT_TITLES[nextType] || BANK_ENTRY_TITLES[nextType]);
-      setBankName(nextType === 'upi_to_bank' || nextType.startsWith('bank_') ? 'Mandal Bank FD Account' : 'Mandal Treasury');
+      setBankName(nextType === 'renew' || nextType === 'upi_to_bank' || nextType.startsWith('bank_') ? 'Mandal Bank FD Account' : 'Mandal Treasury');
       setExpiryDate('');
       setInterestRate('0');
       setExpectedReturns('');
     }
+    if (nextType !== 'renew') setRenewedFromId('');
   };
 
   const handleTransferRouteChange = (source, destination) => {
@@ -126,26 +136,25 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
       setExpiryDate(item.expiry_date || '');
       setHolderName(item.holder_name || '');
       setNote(item.note || '');
+      setRenewedFromId(item.renewed_from_id ? String(item.renewed_from_id) : '');
       setTransferSource(transferRoute?.[0] || 'Cash');
       setTransferDestination(transferRoute?.[1] || 'UPI / Online');
     } else {
       const today = new Date().toISOString().split('T')[0];
       setEditItem(null);
       setIsTransferForm(false);
-      setTitle('');
-      setType('deposit');
+      setTitle('Bank Income / Credit');
+      setType('bank_income');
       setAmount('');
-      setInterestRate('7.5');
-      setExpectedReturns('');
+      setInterestRate('0');
+      setExpectedReturns('0');
       setBankName('Mandal Bank FD Account');
       setDate(today);
       setRecordYear(deriveYearFromDate(today, activeYear));
-      // Default expiry date 1 year from now
-      const nextYear = new Date();
-      nextYear.setFullYear(nextYear.getFullYear() + 1);
-      setExpiryDate(nextYear.toISOString().split('T')[0]);
+      setExpiryDate('');
       setHolderName('');
       setNote('');
+      setRenewedFromId('');
       setTransferSource('Cash');
       setTransferDestination('UPI / Online');
     }
@@ -170,18 +179,8 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
     setExpiryDate('');
     setHolderName('');
     setNote('');
+    setRenewedFromId('');
     setShowModal(true);
-  };
-
-  const handleAmountRateChange = (amtVal, rateVal) => {
-    setAmount(amtVal);
-    setInterestRate(rateVal);
-    const numAmt = Number(amtVal);
-    const numRate = Number(rateVal);
-    if (!isNaN(numAmt) && numAmt > 0 && !isNaN(numRate) && numRate > 0) {
-      const expInterest = Math.round(numAmt * (numRate / 100));
-      setExpectedReturns(numAmt + expInterest);
-    }
   };
 
   const handleSave = async (e) => {
@@ -200,6 +199,11 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
     const entryType = isTransferForm ? transferTypeForRoute(transferSource, transferDestination) : type;
     if (!entryType) {
       alert('Choose two different transfer locations.');
+      return;
+    }
+
+    if (entryType === 'renew' && !renewedFromId) {
+      alert('Select the FD that is being renewed.');
       return;
     }
 
@@ -229,10 +233,11 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
       year: recordYear || deriveYearFromDate(date, activeYear),
       amount: numAmt,
       interest_rate: Number(interestRate) || 0,
-      expected_returns: Number(expectedReturns) || numAmt,
+      expected_returns: Number(expectedReturns) || 0,
       bank_name: bankName.trim(),
       date,
       expiry_date: expiryDate || null,
+      renewed_from_id: entryType === 'renew' ? Number(renewedFromId) : null,
       holder_name: holderName.trim(),
       note: note.trim()
     };
@@ -314,7 +319,6 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
     }
   };
 
-  const todayStr = new Date().toISOString().split('T')[0];
   const holderFieldLabel = ['cash_to_upi', 'bank_to_upi'].includes(type)
     ? 'UPI Holder (optional)'
     : ['upi_to_cash', 'bank_to_cash'].includes(type)
@@ -342,7 +346,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
             <Landmark size={24} color="#A7F3D0" /> Mandal Bank FD & Treasury
           </h2>
           <span style={{ fontSize: 13, opacity: 0.9, fontWeight: 600, display: 'block', marginTop: 4 }}>
-            मंडळ बँक ठेव, मुदतपूर्ती व खर्च व्यवस्थापन
+            मंडळ बँक व एफडी नोंद व्यवस्थापन
           </span>
         </div>
 
@@ -356,35 +360,9 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
         </div>
       </div>
 
-      {hasMaturityDetails && (
-        <CollapsibleSection title="FD maturity details" summary="Expected maturity value and renewal alerts" style={{ marginBottom: 20 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-            <div className="luxe-card" style={{ padding: 16, background: '#F0FDF4', border: '1px solid #DCFCE7' }}>
-          <span style={{ fontSize: 11, fontWeight: 800, color: '#166534', display: 'block', textTransform: 'uppercase' }}>
-            Expected Maturity Returns
-          </span>
-          <p style={{ fontSize: 18, fontWeight: 900, color: '#047857', margin: '4px 0 0 0' }}>
-            Rs. {fdSummary.expected_returns.toLocaleString('en-IN')}
-          </p>
-            </div>
-
-            {fdSummary.expired_count > 0 && (
-              <div className="luxe-card" style={{ padding: 16, background: '#FFFBEB', border: '1px solid #FDE68A' }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#B45309', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <AlertTriangle size={14} color="#D97706" /> FD Matured / Renew Due
-            </span>
-            <p style={{ fontSize: 16, fontWeight: 900, color: '#92400E', margin: '4px 0 0 0' }}>
-              {fdSummary.expired_count} FD Receipt Matured
-            </p>
-              </div>
-            )}
-          </div>
-        </CollapsibleSection>
-      )}
-
       {/* Filter Tabs Pills */}
       <div data-disable-page-swipe="true" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 16 }}>
-        {['All', 'transfer', 'deposit', 'renew', 'interest', 'bank_income', 'bank_expense', 'withdrawal', 'fd_expense', 'charge'].map(t => (
+        {['All', 'transfer', 'renew', 'bank_income', 'bank_expense'].map(t => (
           <button
             key={t}
             onClick={() => setSelectedType(t)}
@@ -394,7 +372,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
               borderColor: selectedType === t ? '#047857' : undefined
             }}
           >
-            {t === 'All' ? 'All Transactions' : t === 'transfer' ? 'Transfers' : t === 'deposit' ? 'FD Deposits' : t === 'renew' ? 'FD Renewals' : t === 'interest' ? 'Interest Earned' : t === 'bank_income' ? 'Bank Income' : t === 'bank_expense' ? 'Bank Expense' : t === 'withdrawal' ? 'Withdrawals' : t === 'fd_expense' ? 'FD Expense' : 'Bank Fees'}
+            {t === 'All' ? 'All Transactions' : t === 'transfer' ? 'Transfers' : t === 'renew' ? 'FD Renewals' : t === 'bank_income' ? 'Bank Credit' : 'Bank Debit'}
           </button>
         ))}
       </div>
@@ -437,7 +415,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
             onClick={() => openForm()}
             style={{ width: 'auto', padding: '0 22px', borderRadius: 16, background: '#047857', borderColor: '#047857' }}
           >
-            <Plus size={20} /> Add Bank Entry
+            <Plus size={20} /> Other Bank Entry
           </button>
         )}
       </div>
@@ -448,7 +426,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
           <Landmark size={56} color="#CBD5E1" style={{ margin: '0 auto 12px auto' }} />
           <p style={{ fontSize: 15, fontWeight: 700 }}>No bank entries added yet.</p>
           <p style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>
-            Click "Add Bank Entry" above to add FD deposits, interest, or past records!
+            Use Transfer to add or withdraw FD money, or add a renewal / bank adjustment.
           </p>
         </div>
       ) : (
@@ -457,10 +435,9 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
             const meta = getTypeLabel(item.type);
             const isNegative = item.type === 'withdrawal' || item.type === 'charge' || item.type === 'fd_expense' || item.type === 'bank_expense' || item.type === 'bank_to_cash' || item.type === 'bank_to_upi';
             const isTransfer = isBankTransferType(item.type);
-            const isExpired = item.expiry_date && item.expiry_date <= todayStr && (item.type === 'deposit' || item.type === 'renew');
 
             return (
-              <div key={item.id} className="luxe-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 16, border: isExpired ? '1.5px solid #F59E0B' : undefined }}>
+              <div key={item.id} className="luxe-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                   <div style={{
                     width: 48, height: 48, borderRadius: 16, background: meta.bg,
@@ -481,11 +458,6 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
                           <Lock size={12} /> Audit Record
                         </span>
                       )}
-                      {isExpired && (
-                        <span style={{ background: '#FEF3C7', border: '1px solid #FDE68A', color: '#B45309', padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <AlertTriangle size={12} /> Matured / Renew Due
-                        </span>
-                      )}
                     </div>
                     <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, margin: '4px 0 0 0' }}>
                       {meta.label} • {new Date(item.date).toLocaleDateString('en-IN')} {item.bank_name ? `• ${item.bank_name}` : ''}
@@ -493,11 +465,6 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
                     {item.holder_name && (
                       <p style={{ fontSize: 11, color: '#475569', fontWeight: 700, margin: '2px 0 0 0' }}>
                         Held by: {item.holder_name}
-                      </p>
-                    )}
-                    {item.expiry_date && (
-                      <p style={{ fontSize: 11, color: isExpired ? '#D97706' : '#059669', fontWeight: 700, margin: '2px 0 0 0' }}>
-                        📅 Expiry Date: {new Date(item.expiry_date).toLocaleDateString('en-IN')} {item.expected_returns ? `• Expected Maturity: Rs. ${Number(item.expected_returns).toLocaleString('en-IN')}` : ''}
                       </p>
                     )}
                   </div>
@@ -583,13 +550,10 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
                   disabled={!!editItem}
                 >
                   <optgroup label="Bank and FD entries">
-                  <option value="deposit">FD Deposit / New FD</option>
                   <option value="renew">FD Renew</option>
-                  <option value="interest">FD Interest Received</option>
                   <option value="bank_income">Bank Income / Credit (separate from yearly income)</option>
                   <option value="bank_expense">Bank Expense / Debit (separate from yearly expenses)</option>
-                  <option value="charge">Bank Charges / Service Fee</option>
-                  {editItem && ['withdrawal', 'fd_expense'].includes(type) && <option value={type}>Existing: {getTypeLabel(type).label}</option>}
+                  {editItem && ['deposit', 'interest', 'withdrawal', 'fd_expense', 'charge'].includes(type) && <option value={type}>Existing: {getTypeLabel(type).label}</option>}
                   </optgroup>
                 </select>
               </div>
@@ -626,7 +590,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
                   type="number"
                   className="input-field"
                   value={amount}
-                  onChange={e => handleAmountRateChange(e.target.value, interestRate)}
+                  onChange={e => setAmount(e.target.value)}
                   placeholder="e.g. 50000"
                   required
                 />
@@ -658,43 +622,19 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
                 </div>
               </div>
 
-              {(type === 'deposit' || type === 'renew') && (
-                <>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <div className="input-group">
-                      <label className="input-label">Interest Rate (% p.a.)</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        className="input-field"
-                        value={interestRate}
-                        onChange={e => handleAmountRateChange(amount, e.target.value)}
-                        placeholder="e.g. 7.5"
-                      />
-                    </div>
-
-                    <div className="input-group">
-                      <label className="input-label">Expected Maturity (Rs.)</label>
-                      <input
-                        type="number"
-                        className="input-field"
-                        value={expectedReturns}
-                        onChange={e => setExpectedReturns(e.target.value)}
-                        placeholder="e.g. 53750"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="input-group">
-                    <label className="input-label">Expiry / Maturity Date (मुदतपूर्ती दिनांक)</label>
-                    <input
-                      type="date"
-                      className="input-field"
-                      value={expiryDate}
-                      onChange={e => setExpiryDate(e.target.value)}
-                    />
-                  </div>
-                </>
+              {type === 'renew' && !isTransferForm && (
+                <div className="input-group">
+                  <label className="input-label">FD Being Renewed *</label>
+                  <select className="input-field" value={renewedFromId} onChange={event => setRenewedFromId(event.target.value)} required>
+                    <option value="">Select the old FD</option>
+                    {renewableFDs.map(fd => (
+                      <option key={fd.id} value={fd.id}>
+                        {fd.title} — Rs. {Number(fd.amount).toLocaleString('en-IN')} ({new Date(fd.date).toLocaleDateString('en-IN')})
+                      </option>
+                    ))}
+                  </select>
+                  <p style={{ margin: '7px 0 0', color: '#475569', fontSize: 12, fontWeight: 700 }}>Enter the renewed total above, including credited interest. The old FD is replaced, not added again.</p>
+                </div>
               )}
 
               {!isTransferForm && <div className="input-group">
