@@ -451,6 +451,30 @@ export async function deleteRecord(table, id) {
 }
 
 /**
+ * Deletes a donation and, in the same database transaction, deletes its
+ * member only when that member has no remaining donation history. This avoids
+ * orphan members appearing as pending after a receipt is removed.
+ */
+export async function deleteDonationRecord(id) {
+  const donationId = assertId(id);
+  const supabase = requireSupabase();
+  const result = await supabase.rpc('delete_vargani_and_orphan_member', {
+    p_vargani_id: donationId
+  });
+  const rows = assertResult('delete donation', 'vargani', result) || [];
+  const row = Array.isArray(rows) ? rows[0] : rows;
+
+  if (!row?.deleted_vargani_id) {
+    throw new Error(`Supabase delete failed for "vargani": record "${donationId}" was not found.`);
+  }
+
+  return {
+    id: row.deleted_vargani_id,
+    deletedMemberId: row.deleted_member_id ?? null
+  };
+}
+
+/**
  * Finds an existing member case-insensitively by name, or creates a new member
  * and returns the server-generated row. A unique normalized-name constraint or
  * RPC is still recommended to make concurrent creates fully race-free.

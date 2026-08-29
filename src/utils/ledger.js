@@ -151,12 +151,11 @@ export function calculateSummary(year, data = {}) {
 
   const paidVarganiList = varganiList.filter((record) => (record?.status || 'paid') === 'paid');
   const pendingVarganiList = varganiList.filter((record) => record?.status === 'pending');
-  const registeredMembers = asArray(data?.members);
-
-  // Member rows are now supplied by Supabase. For legacy/incomplete imports,
-  // still show donation-linked members instead of an empty dashboard.
-  const fallbackMembers = new Set(varganiList.map(memberKey).filter(Boolean));
-  const membersCount = registeredMembers.length || fallbackMembers.size;
+  // A member is active for a festival year only when they have a donation row
+  // in that year. This excludes historical/orphan member rows from the live
+  // dashboard, including members whose only receipt was deleted.
+  const activeMemberKeys = new Set(varganiList.map(memberKey).filter(Boolean));
+  const membersCount = activeMemberKeys.size;
   const paidMembersCount = new Set(paidVarganiList.map(memberKey).filter(Boolean)).size;
   const pendingMembersCount = new Set(pendingVarganiList.map(memberKey).filter(Boolean)).size;
   const fdSummary = calculateBankFDSummary(data?.bank_fd);

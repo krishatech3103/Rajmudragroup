@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Search, MessageSquare, Edit, Trash2, X, HeartHandshake, Languages, ChevronDown, ChevronUp, History, CheckCircle2, Clock, CreditCard, Banknote, Tag } from 'lucide-react';
 import { generateWhatsAppReceipt } from '../utils/whatsapp';
 import { transliterateText } from '../utils/marathiTransliterate';
-import { createRecord, deleteRecord, findOrCreateMember, updateRecord } from '../services/supabase';
+import { createRecord, deleteDonationRecord, findOrCreateMember, updateRecord } from '../services/supabase';
 import { calculatePaymentModeTotals } from '../utils/ledger';
 import MemberHistoryModal from './MemberHistoryModal';
 
@@ -29,6 +29,8 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
   const members = Array.isArray(data.members) ? data.members : [];
   const varganiList = (Array.isArray(data.vargani) ? data.vargani : [])
     .filter(record => record?.year === activeYear);
+  const activeMemberIds = new Set(varganiList.map(record => record?.member_id).filter(id => id !== undefined && id !== null).map(String));
+  const activeMemberCount = activeMemberIds.size || new Set(varganiList.map(record => record?.member_name).filter(Boolean)).size;
   const totalVargani = varganiList.reduce((sum, v) => sum + Number(v.amount), 0);
   const receivedByMode = calculatePaymentModeTotals(varganiList, { excludePending: true });
 
@@ -137,8 +139,11 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
     if (!isAdmin) return;
     if (confirm(`Are you sure you want to delete donation record for ${name}?`)) {
       try {
-        await deleteRecord('vargani', id);
-        onUpdate?.({ table: 'vargani', eventType: 'DELETE', id });
+        const deleted = await deleteDonationRecord(id);
+        onUpdate?.({ table: 'vargani', eventType: 'DELETE', id: deleted.id });
+        if (deleted.deletedMemberId !== null) {
+          onUpdate?.({ table: 'members', eventType: 'DELETE', id: deleted.deletedMemberId });
+        }
       } catch (error) {
         alert(`Could not delete the donation: ${error.message}`);
       }
@@ -170,7 +175,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
             <HeartHandshake size={20} color="#93C5FD" /> Member Donations
           </h2>
           <span style={{ fontSize: 12, opacity: 0.85, fontWeight: 600, display: 'block', marginTop: 2 }}>
-            Festival Year {activeYear} • {members.length} Active Members
+            Festival Year {activeYear} • {activeMemberCount} Active Members
           </span>
         </div>
 

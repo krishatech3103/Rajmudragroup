@@ -20,8 +20,18 @@ export default function ReportsModule({ activeYear, data = {} }) {
       .filter(memberId => memberId !== undefined && memberId !== null)
       .map(memberId => String(memberId))
   );
-  const paidMembers = members.filter(member => paidMemberIds.has(String(member.id)));
-  const pendingMembers = members.filter(member => !paidMemberIds.has(String(member.id)));
+  // Report only members with a donation row in the selected year. A global
+  // members list may contain historic or deleted-test rows, which must not be
+  // displayed as a current-year pending payment.
+  const activeMemberIds = new Set(
+    varganiList
+      .map(vargani => vargani?.member_id)
+      .filter(memberId => memberId !== undefined && memberId !== null)
+      .map(memberId => String(memberId))
+  );
+  const activeMembers = members.filter(member => activeMemberIds.has(String(member.id)));
+  const paidMembers = activeMembers.filter(member => paidMemberIds.has(String(member.id)));
+  const pendingMembers = activeMembers.filter(member => !paidMemberIds.has(String(member.id)));
 
   const fmt = (v) => `Rs. ${Number(v).toLocaleString('en-IN')}`;
 

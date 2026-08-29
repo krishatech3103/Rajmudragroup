@@ -38,6 +38,8 @@ Supabase-backed accounts, member donations, income/expenses, Aarti schedules, ba
 
 4. Before deploying the Cash/UPI expense feature to an existing database, run [supabase_expense_payment_mode.sql](./supabase_expense_payment_mode.sql). It adds `kharch.payment_mode` safely and marks older expense rows as Cash.
 
+5. Before deploying the permanent donation-delete fix, run [supabase_donation_delete_cleanup.sql](./supabase_donation_delete_cleanup.sql). It removes existing orphan/test members and ensures a future deleted donation removes its member only when there is no donation history left.
+
 ## Secure login: admin and view-only users
 
 The app now uses a username-and-password screen backed by Supabase Auth, not a browser PIN. Supabase stores password hashes and the database enforces permissions:
