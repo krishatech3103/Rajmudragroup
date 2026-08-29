@@ -44,7 +44,7 @@ export default function Dashboard({ isAdmin, activeYear, onUpdate, onNavigateTab
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2, gap: 12, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 13, fontWeight: 800, opacity: 0.95, display: 'flex', alignItems: 'center', gap: 7, letterSpacing: 0.8 }}>
-            <Wallet size={18} /> NET FESTIVAL CASH BALANCE
+            <Wallet size={18} /> YEARLY DONATION & EXPENSE BALANCE
           </span>
           <span style={{
             background: 'rgba(255, 255, 255, 0.2)',
@@ -116,7 +116,7 @@ export default function Dashboard({ isAdmin, activeYear, onUpdate, onNavigateTab
             </div>
             <div>
               <span style={{ fontSize: 11, fontWeight: 800, opacity: 0.9, textTransform: 'uppercase', letterSpacing: 0.8, display: 'block' }}>
-                MANDAL BANK FIXED DEPOSIT (FD)
+                MANDAL BANK / FD BALANCE
               </span>
               <h3 style={{ fontSize: 20, fontWeight: 900, margin: '2px 0 0 0', color: '#ffffff' }}>
                 Rs. {fdSummary.current_fd_balance.toLocaleString('en-IN')}
@@ -134,8 +134,8 @@ export default function Dashboard({ isAdmin, activeYear, onUpdate, onNavigateTab
           marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(255, 255, 255, 0.18)',
           display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700
         }}>
-          <span>Total Net Assets (Cash + Bank FD):</span>
-          <span style={{ fontWeight: 900, color: '#A7F3D0' }}>{fmt(summary.total_assets)}</span>
+          <span>Kept separate from the yearly donation and expense balance.</span>
+          <span style={{ fontWeight: 900, color: '#A7F3D0' }}>View Bank Ledger →</span>
         </div>
       </div>
 

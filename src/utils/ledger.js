@@ -97,6 +97,8 @@ export function calculateBankFDSummary(bankFd, today = new Date()) {
   let totalCharges = 0;
   let totalWithdrawals = 0;
   let totalFDExpenses = 0;
+  let totalBankIncome = 0;
+  let totalBankExpenses = 0;
   let expectedReturns = 0;
   let expiredCount = 0;
 
@@ -115,6 +117,9 @@ export function calculateBankFDSummary(bankFd, today = new Date()) {
     } else if (item?.type === 'interest') {
       totalFD += amount;
       totalInterest += amount;
+    } else if (item?.type === 'bank_income') {
+      totalFD += amount;
+      totalBankIncome += amount;
     } else if (item?.type === 'withdrawal' || item?.type === 'bank_to_cash' || item?.type === 'bank_to_upi') {
       totalFD -= amount;
       if (item?.type === 'withdrawal') totalWithdrawals += amount;
@@ -124,6 +129,9 @@ export function calculateBankFDSummary(bankFd, today = new Date()) {
     } else if (item?.type === 'charge') {
       totalFD -= amount;
       totalCharges += amount;
+    } else if (item?.type === 'bank_expense') {
+      totalFD -= amount;
+      totalBankExpenses += amount;
     }
 
     if (
@@ -141,6 +149,8 @@ export function calculateBankFDSummary(bankFd, today = new Date()) {
     total_charges: totalCharges,
     total_withdrawals: totalWithdrawals,
     total_fd_expenses: totalFDExpenses,
+    total_bank_income: totalBankIncome,
+    total_bank_expenses: totalBankExpenses,
     expected_returns: expectedReturns,
     expired_count: expiredCount,
     entries_count: asArray(bankFd).length
@@ -206,14 +216,16 @@ export function calculateSummary(year, data = {}) {
   const jamaList = recordsForYear(data?.jama, year);
   const kharchList = recordsForYear(data?.kharch, year);
 
-  const vargani = varganiList.reduce((sum, record) => sum + toAmount(record?.amount), 0);
+  // A pending promise is not money available to the Mandal. Only paid
+  // donations belong in the yearly income and deficit/surplus calculation.
+  const paidVarganiList = varganiList.filter((record) => (record?.status || 'paid') === 'paid');
+  const pendingVarganiList = varganiList.filter((record) => record?.status === 'pending');
+  const vargani = paidVarganiList.reduce((sum, record) => sum + toAmount(record?.amount), 0);
   const jama = jamaList.reduce((sum, record) => sum + toAmount(record?.amount), 0);
   const kharch = kharchList.reduce((sum, record) => sum + toAmount(record?.amount), 0);
   const income = vargani + jama;
   const balance = income - kharch;
 
-  const paidVarganiList = varganiList.filter((record) => (record?.status || 'paid') === 'paid');
-  const pendingVarganiList = varganiList.filter((record) => record?.status === 'pending');
   // A member is active for a festival year only when they have a donation row
   // in that year. This excludes historical/orphan member rows from the live
   // dashboard, including members whose only receipt was deleted.
@@ -234,8 +246,7 @@ export function calculateSummary(year, data = {}) {
     pendingMembersCount,
     paidVarganiCount: paidVarganiList.length,
     pendingVarganiCount: pendingVarganiList.length,
-    bank_fd_balance: fdSummary.current_fd_balance,
-    total_assets: balance + fdSummary.current_fd_balance
+    bank_fd_balance: fdSummary.current_fd_balance
   };
 }
 

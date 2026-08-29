@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Search, Edit, Trash2, X, ArrowUpCircle, Languages, Lock, ChevronDown, ChevronUp, CreditCard, Banknote } from 'lucide-react';
 import { transliterateText } from '../utils/marathiTransliterate';
 import { createRecord, deleteRecord, updateRecord } from '../services/supabase';
-import { calculatePaymentModeTotals } from '../utils/ledger';
+import { calculateTreasuryBalances } from '../utils/ledger';
 
 const EXPENSE_CATEGORIES = [
   'All',
@@ -38,7 +38,16 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate, data = {
   const kharchList = (Array.isArray(data.kharch) ? data.kharch : [])
     .filter(record => record?.year === activeYear);
   const totalKharch = kharchList.reduce((sum, k) => sum + Number(k.amount), 0);
-  const paidByMode = calculatePaymentModeTotals(kharchList);
+  const treasuryBalances = calculateTreasuryBalances(activeYear, data);
+  const availableForSelectedMode = (() => {
+    const available = { ...treasuryBalances };
+    if (editItem) {
+      const previousMode = String(editItem.payment_mode || 'Cash').trim().toLowerCase();
+      if (previousMode === 'cash') available.cash += Number(editItem.amount) || 0;
+      else available.online += Number(editItem.amount) || 0;
+    }
+    return paymentMode === 'Cash' ? available.cash : available.online;
+  })();
 
   const filtered = kharchList.filter(k => {
     const matchesSearch = k.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -83,6 +92,14 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate, data = {
     const numAmt = Number(amount);
     if (isNaN(numAmt) || numAmt <= 0) {
       alert('Enter a valid amount!');
+      return;
+    }
+
+    // An edit replaces the old expense. Add its old amount back before
+    // checking the selected payment mode, otherwise an unchanged edit would
+    // incorrectly look like a second expense.
+    if (numAmt > availableForSelectedMode) {
+      alert(`Not enough ${paymentMode} balance for this expense. Available: Rs. ${availableForSelectedMode.toLocaleString('en-IN')}.`);
       return;
     }
 
@@ -158,12 +175,12 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate, data = {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
         <div className="luxe-card" style={{ padding: '11px 13px', border: '1px solid #FECACA' }}>
-          <span style={{ color: '#991B1B', fontSize: 11, fontWeight: 800, display: 'block' }}>CASH PAID</span>
-          <strong style={{ color: '#DC2626', fontSize: 17 }}>Rs. {paidByMode.cash.toLocaleString('en-IN')}</strong>
+          <span style={{ color: '#991B1B', fontSize: 11, fontWeight: 800, display: 'block' }}>CASH AVAILABLE</span>
+          <strong style={{ color: treasuryBalances.cash < 0 ? '#991B1B' : '#DC2626', fontSize: 17 }}>Rs. {treasuryBalances.cash.toLocaleString('en-IN')}</strong>
         </div>
         <div className="luxe-card" style={{ padding: '11px 13px', border: '1px solid #BFDBFE' }}>
-          <span style={{ color: '#1D4ED8', fontSize: 11, fontWeight: 800, display: 'block' }}>UPI / ONLINE PAID</span>
-          <strong style={{ color: '#2563EB', fontSize: 17 }}>Rs. {paidByMode.online.toLocaleString('en-IN')}</strong>
+          <span style={{ color: '#1D4ED8', fontSize: 11, fontWeight: 800, display: 'block' }}>UPI / ONLINE AVAILABLE</span>
+          <strong style={{ color: treasuryBalances.online < 0 ? '#991B1B' : '#2563EB', fontSize: 17 }}>Rs. {treasuryBalances.online.toLocaleString('en-IN')}</strong>
         </div>
       </div>
 
@@ -377,6 +394,9 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate, data = {
                     <CreditCard size={16} /> UPI / Online
                   </button>
                 </div>
+                <p style={{ margin: '7px 0 0', fontSize: 12, fontWeight: 700, color: availableForSelectedMode < 0 ? '#B91C1C' : '#475569' }}>
+                  Available {paymentMode} balance: Rs. {availableForSelectedMode.toLocaleString('en-IN')}
+                </p>
               </div>
 
               <div className="input-group">

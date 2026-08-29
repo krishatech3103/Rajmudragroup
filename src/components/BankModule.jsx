@@ -14,6 +14,11 @@ const MOVEMENT_TITLES = Object.freeze({
   bank_to_upi: 'FD Withdrawal to UPI'
 });
 
+const BANK_ENTRY_TITLES = Object.freeze({
+  bank_income: 'Bank Income / Credit',
+  bank_expense: 'Bank Expense / Debit'
+});
+
 export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} }) {
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState('All');
@@ -54,8 +59,8 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
 
   const handleTypeChange = (nextType) => {
     setType(nextType);
-    if (!editItem && MOVEMENT_TITLES[nextType]) {
-      setTitle(MOVEMENT_TITLES[nextType]);
+    if (!editItem && (MOVEMENT_TITLES[nextType] || BANK_ENTRY_TITLES[nextType])) {
+      setTitle(MOVEMENT_TITLES[nextType] || BANK_ENTRY_TITLES[nextType]);
       setBankName(nextType === 'upi_to_bank' || nextType.startsWith('bank_') ? 'Mandal Bank FD Account' : 'Mandal Treasury');
       setExpiryDate('');
       setInterestRate('0');
@@ -160,6 +165,11 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
       }
     }
 
+    if (!editItem && type === 'bank_expense' && numAmt > fdSummary.current_fd_balance) {
+      alert(`Bank expense is greater than the available Bank / FD balance (Rs. ${fdSummary.current_fd_balance.toLocaleString('en-IN')}).`);
+      return;
+    }
+
     const payload = {
       title: title.trim(),
       type,
@@ -236,6 +246,8 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
       case 'deposit': return { label: 'FD Deposit / New FD (नवीन ठेव पावती)', color: '#059669', bg: '#ECFDF5', icon: <Landmark size={18} /> };
       case 'renew': return { label: 'FD Renew (ठेव नूतनीकरण)', color: '#D97706', bg: '#FEF3C7', icon: <RefreshCw size={18} /> };
       case 'interest': return { label: 'FD Interest Received (ठेवीवरील व्याज)', color: '#2563EB', bg: '#EFF6FF', icon: <Percent size={18} /> };
+      case 'bank_income': return { label: 'Bank Income / Credit (वर्षाच्या जमा पासून वेगळे)', color: '#059669', bg: '#ECFDF5', icon: <Landmark size={18} /> };
+      case 'bank_expense': return { label: 'Bank Expense / Debit (वर्षाच्या खर्चापासून वेगळे)', color: '#DC2626', bg: '#FEF2F2', icon: <Receipt size={18} /> };
       case 'withdrawal': return { label: 'FD Cash Withdrawal (ठेव रोख काढली)', color: '#DC2626', bg: '#FEF2F2', icon: <Landmark size={18} /> };
       case 'fd_expense': return { label: 'FD Withdrawal for Expense (ठेव मोडून खर्च करणे)', color: '#9333EA', bg: '#F3E8FF', icon: <Receipt size={18} /> };
       case 'charge': return { label: 'Bank Charge / Fee (बँक फी)', color: '#D97706', bg: '#FFFBEB', icon: <CreditCard size={18} /> };
@@ -283,7 +295,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
 
         <div style={{ textAlign: 'right', minWidth: 'fit-content' }}>
           <span style={{ fontSize: 11, opacity: 0.85, fontWeight: 800, textTransform: 'uppercase', display: 'block' }}>
-            ALL-TIME BANK FD BALANCE
+            ALL-TIME BANK / FD BALANCE
           </span>
           <p style={{ fontSize: 26, fontWeight: 900, margin: '2px 0 0 0', letterSpacing: -0.5 }}>
             Rs. {fdSummary.current_fd_balance.toLocaleString('en-IN')}
@@ -334,7 +346,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
 
       {/* Filter Tabs Pills */}
       <div data-disable-page-swipe="true" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 16 }}>
-        {['All', 'transfer', 'deposit', 'renew', 'interest', 'withdrawal', 'fd_expense', 'charge'].map(t => (
+        {['All', 'transfer', 'deposit', 'renew', 'interest', 'bank_income', 'bank_expense', 'withdrawal', 'fd_expense', 'charge'].map(t => (
           <button
             key={t}
             onClick={() => setSelectedType(t)}
@@ -344,7 +356,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
               borderColor: selectedType === t ? '#047857' : undefined
             }}
           >
-            {t === 'All' ? 'All Transactions' : t === 'transfer' ? 'Transfers' : t === 'deposit' ? 'FD Deposits' : t === 'renew' ? 'FD Renewals' : t === 'interest' ? 'Interest Earned' : t === 'withdrawal' ? 'Withdrawals' : t === 'fd_expense' ? 'FD Expense' : 'Bank Fees'}
+            {t === 'All' ? 'All Transactions' : t === 'transfer' ? 'Transfers' : t === 'deposit' ? 'FD Deposits' : t === 'renew' ? 'FD Renewals' : t === 'interest' ? 'Interest Earned' : t === 'bank_income' ? 'Bank Income' : t === 'bank_expense' ? 'Bank Expense' : t === 'withdrawal' ? 'Withdrawals' : t === 'fd_expense' ? 'FD Expense' : 'Bank Fees'}
           </button>
         ))}
       </div>
@@ -405,7 +417,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {filtered.map(item => {
             const meta = getTypeLabel(item.type);
-            const isNegative = item.type === 'withdrawal' || item.type === 'charge' || item.type === 'fd_expense' || item.type === 'bank_to_cash' || item.type === 'bank_to_upi';
+            const isNegative = item.type === 'withdrawal' || item.type === 'charge' || item.type === 'fd_expense' || item.type === 'bank_expense' || item.type === 'bank_to_cash' || item.type === 'bank_to_upi';
             const isTransfer = isBankTransferType(item.type);
             const isExpired = item.expiry_date && item.expiry_date <= todayStr && (item.type === 'deposit' || item.type === 'renew');
 
@@ -517,6 +529,8 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
                   <option value="deposit">FD Deposit / New FD</option>
                   <option value="renew">FD Renew</option>
                   <option value="interest">FD Interest Received</option>
+                  <option value="bank_income">Bank Income / Credit (separate from yearly income)</option>
+                  <option value="bank_expense">Bank Expense / Debit (separate from yearly expenses)</option>
                   <option value="charge">Bank Charges / Service Fee</option>
                   </optgroup>
                 </select>
@@ -645,6 +659,14 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
                     onChange={e => setHolderName(e.target.value)}
                     placeholder="e.g. Sandip Pujari / Treasurer"
                   />
+                </div>
+              )}
+
+              {(type === 'bank_income' || type === 'bank_expense') && (
+                <div style={{ background: type === 'bank_income' ? '#ECFDF5' : '#FEF2F2', border: `1px solid ${type === 'bank_income' ? '#A7F3D0' : '#FECACA'}`, padding: 12, borderRadius: 14, marginBottom: 14, fontSize: 12, color: type === 'bank_income' ? '#065F46' : '#991B1B', fontWeight: 700 }}>
+                  {type === 'bank_income'
+                    ? 'This increases the Bank / FD ledger only. It does not increase the selected year’s donations or other income.'
+                    : 'This reduces the Bank / FD ledger only. It does not increase the selected year’s festival expenses.'}
                 </div>
               )}
 

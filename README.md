@@ -36,7 +36,7 @@ Supabase-backed accounts, member donations, income/expenses, Aarti schedules, ba
 
 3. For an existing installation, make sure all records that must be retained have reached Supabase before deploying the Supabase-only frontend. Do not automatically import old browser backups after the rollout; they may contain rows deleted by another device.
 
-4. Before deploying the Cash/UPI expense feature to an existing database, run [supabase_expense_payment_mode.sql](./supabase_expense_payment_mode.sql). It adds `kharch.payment_mode` safely and marks older expense rows as Cash.
+4. Before deploying the Cash/UPI expense feature to an existing database, run [supabase_expense_payment_mode.sql](./supabase_expense_payment_mode.sql). It adds `kharch.payment_mode` safely, marks older expense rows as Cash, and reloads the API schema cache.
 
 5. Before deploying the permanent donation-delete fix, run [supabase_donation_delete_cleanup.sql](./supabase_donation_delete_cleanup.sql). It removes existing orphan/test members and ensures a future deleted donation removes its member only when there is no donation history left.
 

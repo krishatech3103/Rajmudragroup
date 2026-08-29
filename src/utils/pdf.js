@@ -232,6 +232,7 @@ export function generateAartiSchedulePDF(year, records = []) {
 function bankEntryLabel(type) {
   const labels = {
     deposit: 'FD Deposit', renew: 'FD Renewal', interest: 'Interest Received',
+    bank_income: 'Bank Income / Credit', bank_expense: 'Bank Expense / Debit',
     withdrawal: 'FD Withdrawal', fd_expense: 'FD Expense', charge: 'Bank Charge',
     cash_to_upi: 'Cash → UPI Transfer', upi_to_cash: 'UPI → Cash Transfer',
     cash_to_bank: 'Cash → Mandal Bank', upi_to_bank: 'UPI → Mandal Bank',
@@ -252,7 +253,7 @@ export function generateBankTreasuryPDF(entries = []) {
 
   element.innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #047857; padding-bottom:4mm; margin-bottom:4mm;">
-      <div><div style="font-size:17px; font-weight:900; color:#065F46;">Rajmudra Mandal Bank & Treasury</div><div style="font-size:10px; color:#64748B; font-weight:700;">All-time transaction report</div></div>
+      <div><div style="font-size:17px; font-weight:900; color:#065F46;">Rajmudra Mandal Bank & Treasury</div><div style="font-size:10px; color:#64748B; font-weight:700;">All-time transaction report — separate from yearly income and expenses</div></div>
       <div style="text-align:right;"><div style="font-size:9px; color:#64748B;">CURRENT BANK / FD BALANCE</div><div style="font-size:16px; font-weight:900; color:#047857;">₹${Number(summary.current_fd_balance).toLocaleString('en-IN')}</div></div>
     </div>
     <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:3mm; margin-bottom:4mm; font-size:9px;">
@@ -265,7 +266,7 @@ export function generateBankTreasuryPDF(entries = []) {
       <thead><tr style="background:#ECFDF5; color:#065F46;"><th style="padding:5px; border:1px solid #A7F3D0;">Date</th><th style="padding:5px; border:1px solid #A7F3D0;">Year</th><th style="padding:5px; border:1px solid #A7F3D0;">Type</th><th style="padding:5px; border:1px solid #A7F3D0;">Description / Bank</th><th style="padding:5px; border:1px solid #A7F3D0; text-align:right;">Amount</th></tr></thead>
       <tbody>
         ${allEntries.length ? allEntries.map((item, index) => {
-          const outgoing = ['withdrawal', 'fd_expense', 'charge', 'bank_to_cash', 'bank_to_upi'].includes(item.type);
+          const outgoing = ['withdrawal', 'fd_expense', 'charge', 'bank_expense', 'bank_to_cash', 'bank_to_upi'].includes(item.type);
           const transfer = isBankTransferType(item.type);
           return `<tr style="background:${index % 2 ? '#F8FAFC' : '#FFFFFF'};"><td style="padding:5px; border:1px solid #E2E8F0;">${escapeHtml(formatDate(item.date))}</td><td style="padding:5px; border:1px solid #E2E8F0;">${escapeHtml(item.year || '-')}</td><td style="padding:5px; border:1px solid #E2E8F0;">${escapeHtml(bankEntryLabel(item.type))}</td><td style="padding:5px; border:1px solid #E2E8F0;"><b>${escapeHtml(item.title)}</b>${item.bank_name ? ` • ${escapeHtml(item.bank_name)}` : ''}${item.holder_name ? `<br><span style="color:#334155; font-weight:700;">Held by: ${escapeHtml(item.holder_name)}</span>` : ''}${item.note ? `<br><span style="color:#64748B;">${escapeHtml(item.note)}</span>` : ''}</td><td style="padding:5px; border:1px solid #E2E8F0; text-align:right; font-weight:800; color:${outgoing ? '#DC2626' : transfer ? '#2563EB' : '#047857'};">${transfer ? '↔' : outgoing ? '-' : '+'} ₹${Number(item.amount).toLocaleString('en-IN')}</td></tr>`;
         }).join('') : '<tr><td colspan="5" style="padding:15px; border:1px solid #E2E8F0; text-align:center;">No bank or treasury entries.</td></tr>'}
