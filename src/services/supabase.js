@@ -206,7 +206,17 @@ export async function signInWithUsername(username, password) {
 export async function restoreAuthenticatedUser() {
   const supabase = requireSupabase();
   const result = await supabase.auth.getUser();
-  const user = assertResult('restore session', 'authentication', result)?.user;
+  // Supabase returns AuthSessionMissingError when no one has logged in on this
+  // device yet. That is the normal state for the login screen, not a failure.
+  if (result.error) {
+    const message = String(result.error.message || '').toLowerCase();
+    if (result.error.name === 'AuthSessionMissingError' || message.includes('auth session missing')) {
+      return null;
+    }
+    throw toSupabaseError('restore session', 'authentication', result.error);
+  }
+
+  const user = result.data?.user;
   if (!user) return null;
 
   try {
