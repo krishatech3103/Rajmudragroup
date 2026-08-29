@@ -40,6 +40,8 @@ Supabase-backed accounts, member donations, income/expenses, Aarti schedules, ba
 
 5. Before deploying the permanent donation-delete fix, run [supabase_donation_delete_cleanup.sql](./supabase_donation_delete_cleanup.sql). It removes existing orphan/test members and ensures a future deleted donation removes its member only when there is no donation history left.
 
+6. Before deploying the cash/UPI holder field for transfers and FD withdrawals, run [supabase_bank_holder.sql](./supabase_bank_holder.sql).
+
 ## Secure login: admin and view-only users
 
 The app now uses a username-and-password screen backed by Supabase Auth, not a browser PIN. Supabase stores password hashes and the database enforces permissions:

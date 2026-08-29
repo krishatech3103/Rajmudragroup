@@ -6,6 +6,13 @@ import { calculateBankFDSummary, calculateTreasuryBalances, deriveYearFromDate, 
 import { generateBankTreasuryPDF } from '../utils/pdf';
 
 const YEARS = ['2026-27', '2025-26', '2024-25', '2027-28', '2023-24'];
+const MOVEMENT_TITLES = Object.freeze({
+  cash_to_upi: 'Cash to UPI Transfer',
+  upi_to_cash: 'UPI to Cash Transfer',
+  upi_to_bank: 'UPI to Mandal Bank FD Transfer',
+  bank_to_cash: 'FD Withdrawal to Cash',
+  bank_to_upi: 'FD Withdrawal to UPI'
+});
 
 export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} }) {
   const [search, setSearch] = useState('');
@@ -16,7 +23,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
 
   // Form State
   const [title, setTitle] = useState('');
-  const [type, setType] = useState('deposit'); // 'deposit', 'renew', 'interest', 'withdrawal', 'fd_expense', 'charge'
+  const [type, setType] = useState('deposit');
   const [amount, setAmount] = useState('');
   const [interestRate, setInterestRate] = useState('7.5');
   const [expectedReturns, setExpectedReturns] = useState('');
@@ -24,6 +31,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [recordYear, setRecordYear] = useState(activeYear);
   const [expiryDate, setExpiryDate] = useState('');
+  const [holderName, setHolderName] = useState('');
   const [note, setNote] = useState('');
 
   const fdList = Array.isArray(data.bank_fd) ? data.bank_fd : [];
@@ -44,6 +52,17 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
     setRecordYear(derived);
   };
 
+  const handleTypeChange = (nextType) => {
+    setType(nextType);
+    if (!editItem && MOVEMENT_TITLES[nextType]) {
+      setTitle(MOVEMENT_TITLES[nextType]);
+      setBankName(nextType === 'upi_to_bank' || nextType.startsWith('bank_') ? 'Mandal Bank FD Account' : 'Mandal Treasury');
+      setExpiryDate('');
+      setInterestRate('0');
+      setExpectedReturns('');
+    }
+  };
+
   const openForm = (item = null) => {
     if (!isAdmin) return;
     if (item && item.is_locked) {
@@ -61,6 +80,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
       setDate(item.date);
       setRecordYear(item.year || activeYear);
       setExpiryDate(item.expiry_date || '');
+      setHolderName(item.holder_name || '');
       setNote(item.note || '');
     } else {
       const today = new Date().toISOString().split('T')[0];
@@ -77,6 +97,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
       const nextYear = new Date();
       nextYear.setFullYear(nextYear.getFullYear() + 1);
       setExpiryDate(nextYear.toISOString().split('T')[0]);
+      setHolderName('');
       setNote('');
     }
     setShowModal(true);
@@ -95,6 +116,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
     setDate(today);
     setRecordYear(deriveYearFromDate(today, activeYear));
     setExpiryDate('');
+    setHolderName('');
     setNote('');
     setShowModal(true);
   };
@@ -148,6 +170,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
       bank_name: bankName.trim(),
       date,
       expiry_date: expiryDate || null,
+      holder_name: holderName.trim(),
       note: note.trim()
     };
 
@@ -220,13 +243,18 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
       case 'upi_to_cash': return { label: 'Transfer: UPI → Cash', color: '#2563EB', bg: '#EFF6FF', icon: <ArrowLeftRight size={18} /> };
       case 'cash_to_bank': return { label: 'Transfer: Cash → Mandal Bank', color: '#047857', bg: '#ECFDF5', icon: <Landmark size={18} /> };
       case 'upi_to_bank': return { label: 'Transfer: UPI → Mandal Bank', color: '#047857', bg: '#ECFDF5', icon: <Landmark size={18} /> };
-      case 'bank_to_cash': return { label: 'Transfer: Mandal Bank → Cash', color: '#D97706', bg: '#FFFBEB', icon: <ArrowLeftRight size={18} /> };
-      case 'bank_to_upi': return { label: 'Transfer: Mandal Bank → UPI', color: '#D97706', bg: '#FFFBEB', icon: <ArrowLeftRight size={18} /> };
+      case 'bank_to_cash': return { label: 'FD Withdrawal → Cash', color: '#D97706', bg: '#FFFBEB', icon: <Banknote size={18} /> };
+      case 'bank_to_upi': return { label: 'FD Withdrawal → UPI', color: '#D97706', bg: '#FFFBEB', icon: <CreditCard size={18} /> };
       default: return { label: 'Bank Entry', color: '#475569', bg: '#F8FAFC', icon: <Landmark size={18} /> };
     }
   };
 
   const todayStr = new Date().toISOString().split('T')[0];
+  const holderFieldLabel = ['cash_to_upi', 'bank_to_upi'].includes(type)
+    ? 'UPI Holder (optional)'
+    : ['upi_to_cash', 'bank_to_cash'].includes(type)
+      ? 'Cash Holder (optional)'
+      : 'Handled By (optional)';
 
   return (
     <div style={{ width: '100%', boxSizing: 'border-box' }} className="animate-fade-in">
@@ -412,6 +440,11 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
                     <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, margin: '4px 0 0 0' }}>
                       {meta.label} • {new Date(item.date).toLocaleDateString('en-IN')} {item.bank_name ? `• ${item.bank_name}` : ''}
                     </p>
+                    {item.holder_name && (
+                      <p style={{ fontSize: 11, color: '#475569', fontWeight: 700, margin: '2px 0 0 0' }}>
+                        Held by: {item.holder_name}
+                      </p>
+                    )}
                     {item.expiry_date && (
                       <p style={{ fontSize: 11, color: isExpired ? '#D97706' : '#059669', fontWeight: 700, margin: '2px 0 0 0' }}>
                         📅 Expiry Date: {new Date(item.expiry_date).toLocaleDateString('en-IN')} {item.expected_returns ? `• Expected Maturity: Rs. ${Number(item.expected_returns).toLocaleString('en-IN')}` : ''}
@@ -470,23 +503,20 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
                 <select
                   className="input-field"
                   value={type}
-                  onChange={e => setType(e.target.value)}
+                  onChange={e => handleTypeChange(e.target.value)}
                   disabled={!!editItem}
                 >
-                  <optgroup label="Fund Transfers (not income or expense)">
+                  <optgroup label="Money movement (not income or expense)">
                     <option value="cash_to_upi">Cash → UPI / Online</option>
                     <option value="upi_to_cash">UPI / Online → Cash</option>
-                    <option value="cash_to_bank">Cash → Mandal Bank / FD</option>
                     <option value="upi_to_bank">UPI / Online → Mandal Bank / FD</option>
-                    <option value="bank_to_cash">Mandal Bank / FD → Cash</option>
-                    <option value="bank_to_upi">Mandal Bank / FD → UPI / Online</option>
+                    <option value="bank_to_cash">FD Withdrawal → Cash</option>
+                    <option value="bank_to_upi">FD Withdrawal → UPI / Online</option>
                   </optgroup>
                   <optgroup label="Bank and FD entries">
                   <option value="deposit">FD Deposit / New FD</option>
                   <option value="renew">FD Renew</option>
                   <option value="interest">FD Interest Received</option>
-                  <option value="withdrawal">FD Cash Withdrawal</option>
-                  <option value="fd_expense">FD Withdrawal for Expense</option>
                   <option value="charge">Bank Charges / Service Fee</option>
                   </optgroup>
                 </select>
@@ -604,6 +634,19 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
                   placeholder="e.g. State Bank of India / Mandal Account"
                 />
               </div>
+
+              {isBankTransferType(type) && (
+                <div className="input-group">
+                  <label className="input-label">{holderFieldLabel}</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={holderName}
+                    onChange={e => setHolderName(e.target.value)}
+                    placeholder="e.g. Sandip Pujari / Treasurer"
+                  />
+                </div>
+              )}
 
               <div className="input-group">
                 <label className="input-label">Note / Receipt Ref</label>
