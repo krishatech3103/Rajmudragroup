@@ -1,7 +1,7 @@
 // Cache only the same-origin application shell. Ledger data must always come
 // directly from Supabase; caching API responses can resurrect deleted rows.
 const CACHE_PREFIX = 'rajmudra-';
-const CACHE_NAME = 'rajmudra-shell-v3';
+const CACHE_NAME = 'rajmudra-shell-v4';
 
 const STATIC_ASSETS = [
   '/',
@@ -67,6 +67,24 @@ async function cacheFirstAppShell(request) {
   return networkResponse;
 }
 
+// The HTML document must come from the network first. A cache-first index.html
+// can point phones at an older hashed JavaScript bundle indefinitely after a
+// deployment, which is especially harmful for login and permission fixes.
+async function networkFirstDocument(request) {
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse && networkResponse.status === 200) {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  } catch (error) {
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) return cachedResponse;
+    throw error;
+  }
+}
+
 // Fetch Event - Supabase and every cross-origin request are deliberately left
 // to the browser's network stack. Only same-origin static app assets use the
 // Cache Storage API.
@@ -78,6 +96,11 @@ self.addEventListener('fetch', (event) => {
   if (!url.protocol.startsWith('http')) return;
 
   if (!isCacheableAppRequest(event.request, url)) return;
+
+  if (event.request.destination === 'document') {
+    event.respondWith(networkFirstDocument(event.request));
+    return;
+  }
 
   event.respondWith(cacheFirstAppShell(event.request));
 });
