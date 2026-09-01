@@ -1,5 +1,5 @@
 import React from 'react';
-import { Wallet, Sparkles, ArrowUpRight, ArrowDownRight, Flame, Landmark, ChevronRight, Users, CheckCircle2, Clock } from 'lucide-react';
+import { Wallet, ArrowUpRight, ArrowDownRight, Flame, Landmark, ChevronRight, Users, CheckCircle2, Clock } from 'lucide-react';
 import { calculateBankFDSummary, calculateSummary } from '../utils/ledger';
 import CollapsibleSection from './CollapsibleSection';
 
@@ -43,31 +43,18 @@ export default function Dashboard({ isAdmin, activeYear, onUpdate, onNavigateTab
           background: 'rgba(255, 179, 0, 0.25)', borderRadius: '50%', filter: 'blur(20px)'
         }} />
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 2, gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', position: 'relative', zIndex: 2 }}>
           <span style={{ fontSize: 13, fontWeight: 800, opacity: 0.95, display: 'flex', alignItems: 'center', gap: 7, letterSpacing: 0.8 }}>
-            <Wallet size={18} /> YEARLY DONATION & EXPENSE BALANCE
-          </span>
-          <span style={{
-            background: 'rgba(255, 255, 255, 0.2)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255, 255, 255, 0.3)',
-            padding: '5px 14px',
-            borderRadius: 20,
-            fontSize: 12,
-            fontWeight: 800,
-            letterSpacing: 0.8,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 5
-          }}>
-            <Sparkles size={13} color="#FFD700" />
-            {isPositive ? 'SURPLUS' : 'DEFICIT'}
+            <Wallet size={18} /> YEARLY FINANCIAL SUMMARY
           </span>
         </div>
 
-        <h2 style={{ fontSize: 34, fontWeight: 900, margin: '14px 0 10px 0', letterSpacing: -0.5, position: 'relative', zIndex: 2, color: '#ffffff' }}>
-          Rs. {Number(summary.balance).toLocaleString('en-IN')}
-        </h2>
+        <div style={{ position: 'relative', zIndex: 2, marginTop: 18 }}>
+          <span style={{ fontSize: 11, fontWeight: 800, opacity: 0.85, letterSpacing: 0.8, textTransform: 'uppercase' }}>Available Balance</span>
+          <h2 style={{ fontSize: 34, fontWeight: 900, margin: '4px 0 0 0', letterSpacing: -0.5, color: '#ffffff' }}>
+            Rs. {Number(summary.balance).toLocaleString('en-IN')}
+          </h2>
+        </div>
 
         <div style={{
           display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12,
@@ -77,66 +64,17 @@ export default function Dashboard({ isAdmin, activeYear, onUpdate, onNavigateTab
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <ArrowDownRight size={18} color="#4ADE80" />
             <div>
-              <span style={{ fontSize: 10, opacity: 0.85, display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Total Revenue</span>
+              <span style={{ fontSize: 10, opacity: 0.85, display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Total Income</span>
               <span style={{ fontSize: 14, fontWeight: 900 }}>{fmt(summary.income)}</span>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <ArrowUpRight size={18} color="#F87171" />
             <div>
-              <span style={{ fontSize: 10, opacity: 0.85, display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Total Expenses</span>
+              <span style={{ fontSize: 10, opacity: 0.85, display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Total Expense</span>
               <span style={{ fontSize: 14, fontWeight: 900 }}>{fmt(summary.kharch)}</span>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Mandal Bank FD Balance (Visible to Viewers & Admin) */}
-      <div
-        className="luxe-card"
-        onClick={() => { if (onNavigateTab) onNavigateTab('bank'); }}
-        style={{
-          background: 'linear-gradient(135deg, #065F46 0%, #047857 50%, #059669 100%)',
-          color: '#ffffff',
-          borderRadius: 20,
-          padding: 18,
-          marginBottom: 16,
-          cursor: 'pointer',
-          boxShadow: '0 12px 30px rgba(5, 150, 105, 0.25)',
-          position: 'relative',
-          overflow: 'hidden'
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 2, flexWrap: 'wrap', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: 14, background: 'rgba(255, 255, 255, 0.2)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}>
-              <Landmark size={20} color="#ffffff" />
-            </div>
-            <div>
-              <span style={{ fontSize: 11, fontWeight: 800, opacity: 0.9, textTransform: 'uppercase', letterSpacing: 0.8, display: 'block' }}>
-                MANDAL BANK / FD BALANCE
-              </span>
-              <h3 style={{ fontSize: 20, fontWeight: 900, margin: '2px 0 0 0', color: '#ffffff' }}>
-                Rs. {fdSummary.current_fd_balance.toLocaleString('en-IN')}
-              </h3>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255, 255, 255, 0.18)', padding: '6px 12px', borderRadius: 12, fontSize: 12, fontWeight: 800 }}>
-            <span>Open Bank Tab</span>
-            <ChevronRight size={15} />
-          </div>
-        </div>
-
-        <div style={{
-          marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(255, 255, 255, 0.18)',
-          display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700
-        }}>
-          <span>Kept separate from the yearly donation and expense balance.</span>
-          <span style={{ fontWeight: 900, color: '#A7F3D0' }}>View Bank Ledger →</span>
         </div>
       </div>
 
@@ -281,6 +219,55 @@ export default function Dashboard({ isAdmin, activeYear, onUpdate, onNavigateTab
           </div>
         </div>
       )}
+
+      {/* Mandal Bank / FD is useful less often, so it remains at the end. */}
+      <div
+        className="luxe-card"
+        onClick={() => { if (onNavigateTab) onNavigateTab('bank'); }}
+        style={{
+          background: 'linear-gradient(135deg, #065F46 0%, #047857 50%, #059669 100%)',
+          color: '#ffffff',
+          borderRadius: 20,
+          padding: 18,
+          marginBottom: 16,
+          cursor: 'pointer',
+          boxShadow: '0 12px 30px rgba(5, 150, 105, 0.25)',
+          position: 'relative',
+          overflow: 'hidden'
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 2, flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: 14, background: 'rgba(255, 255, 255, 0.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              <Landmark size={20} color="#ffffff" />
+            </div>
+            <div>
+              <span style={{ fontSize: 11, fontWeight: 800, opacity: 0.9, textTransform: 'uppercase', letterSpacing: 0.8, display: 'block' }}>
+                MANDAL BANK / FD BALANCE
+              </span>
+              <h3 style={{ fontSize: 20, fontWeight: 900, margin: '2px 0 0 0', color: '#ffffff' }}>
+                Rs. {fdSummary.current_fd_balance.toLocaleString('en-IN')}
+              </h3>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255, 255, 255, 0.18)', padding: '6px 12px', borderRadius: 12, fontSize: 12, fontWeight: 800 }}>
+            <span>Open Bank Tab</span>
+            <ChevronRight size={15} />
+          </div>
+        </div>
+
+        <div style={{
+          marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(255, 255, 255, 0.18)',
+          display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700
+        }}>
+          <span>Kept separate from the yearly donation and expense balance.</span>
+          <span style={{ fontWeight: 900, color: '#A7F3D0' }}>View Bank Ledger →</span>
+        </div>
+      </div>
     </div>
   );
 }
