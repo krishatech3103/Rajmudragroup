@@ -5,6 +5,7 @@ import { transliterateText } from '../utils/marathiTransliterate';
 import { createRecord, deleteDonationRecord, findOrCreateMember, updateRecord } from '../services/supabase';
 import { calculatePaymentModeTotals } from '../utils/ledger';
 import MemberHistoryModal from './MemberHistoryModal';
+import ModalPortal from './ModalPortal';
 
 export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = {}, initialFilter = 'all' }) {
   const [search, setSearch] = useState('');
@@ -416,8 +417,9 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
       )}
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+        <ModalPortal>
+          <div className="modal-overlay" onClick={() => setShowModal(false)}>
+            <div className="modal-sheet" onClick={e => e.stopPropagation()}>
             <div className="sheet-pill" />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <h3 style={{ fontSize: 18, fontWeight: 900, color: '#0F172A' }}>
@@ -620,8 +622,9 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
                 {isSaving ? 'Saving…' : editItem ? 'Update Donation' : 'Save & Issue Receipt'}
               </button>
             </form>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

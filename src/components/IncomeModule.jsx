@@ -4,18 +4,10 @@ import { generateWhatsAppReceipt } from '../utils/whatsapp';
 import { transliterateText } from '../utils/marathiTransliterate';
 import { createRecord, deleteDonationRecord, deleteRecord, findOrCreateMember, updateRecord } from '../services/supabase';
 import { calculatePaymentModeTotals } from '../utils/ledger';
+import { getIncomeCategories, MEMBER_DONATION_CATEGORY } from '../utils/categories';
+import ModalPortal from './ModalPortal';
 
-const INCOME_CATEGORIES = [
-  'All',
-  'Member Donation (वर्गणी)',
-  'Sponsorship / Awards',
-  'Stall / Banner Rental',
-  'Cultural Program Fund',
-  'Interest Income',
-  'Other Income'
-];
-
-export default function IncomeModule({ isAdmin, activeYear, onUpdate, data = {} }) {
+export default function IncomeModule({ isAdmin, activeYear, onUpdate, data = {}, settings = {} }) {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showModal, setShowModal] = useState(false);
@@ -28,7 +20,9 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate, data = {} 
   const [memberName, setMemberName] = useState('');
   const [phone, setPhone] = useState('');
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('Sponsorship / Awards');
+  const incomeCategories = getIncomeCategories(settings);
+  const incomeFilterCategories = ['All', MEMBER_DONATION_CATEGORY, ...incomeCategories];
+  const [category, setCategory] = useState(() => incomeCategories[0] || 'Other Income');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentMode, setPaymentMode] = useState('Cash'); // 'Cash' or 'Online'
@@ -44,7 +38,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate, data = {} 
     id: `vargani_${v.id}`,
     raw_id: v.id,
     title: v.member_name,
-    category: 'Member Donation (वर्गणी)',
+    category: MEMBER_DONATION_CATEGORY,
     amount: v.amount,
     date: v.date,
     note: v.note,
@@ -90,7 +84,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate, data = {} 
       setMemberName('');
       setPhone('');
       setTitle('');
-      setCategory('Sponsorship / Awards');
+      setCategory(incomeCategories[0] || 'Other Income');
       setAmount('');
       setDate(new Date().toISOString().split('T')[0]);
       setPaymentMode('Cash');
@@ -244,7 +238,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate, data = {} 
 
       {/* Category Filter Horizontal Pills */}
       <div data-disable-page-swipe="true" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 12 }}>
-        {INCOME_CATEGORIES.map(cat => (
+        {incomeFilterCategories.map(cat => (
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
@@ -400,8 +394,9 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate, data = {} 
 
       {/* Add / Edit Income Modal */}
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+        <ModalPortal>
+          <div className="modal-overlay" onClick={() => setShowModal(false)}>
+            <div className="modal-sheet" onClick={e => e.stopPropagation()}>
             <div className="sheet-pill" />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <h3 style={{ fontSize: 18, fontWeight: 900, color: '#059669' }}>
@@ -504,7 +499,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate, data = {} 
                       value={category}
                       onChange={e => setCategory(e.target.value)}
                     >
-                      {INCOME_CATEGORIES.filter(c => c !== 'All' && c !== 'Member Donation (वर्गणी)').map(c => (
+                      {incomeCategories.map(c => (
                         <option key={c} value={c}>{c}</option>
                       ))}
                     </select>
@@ -588,8 +583,9 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate, data = {} 
                 {isSaving ? 'Saving…' : editItem ? 'Update Income Entry' : 'Save Income Entry'}
               </button>
             </form>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

@@ -49,17 +49,10 @@ export default function Dashboard({ isAdmin, activeYear, onUpdate, onNavigateTab
           </span>
         </div>
 
-        <div style={{ position: 'relative', zIndex: 2, marginTop: 18 }}>
-          <span style={{ fontSize: 11, fontWeight: 800, opacity: 0.85, letterSpacing: 0.8, textTransform: 'uppercase' }}>Available Balance</span>
-          <h2 style={{ fontSize: 34, fontWeight: 900, margin: '4px 0 0 0', letterSpacing: -0.5, color: '#ffffff' }}>
-            Rs. {Number(summary.balance).toLocaleString('en-IN')}
-          </h2>
-        </div>
-
         <div style={{
           display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12,
           background: 'rgba(0, 0, 0, 0.2)', backdropFilter: 'blur(8px)',
-          borderRadius: 16, padding: '12px 16px', marginTop: 14, position: 'relative', zIndex: 2
+          borderRadius: 16, padding: '12px 16px', marginTop: 18, position: 'relative', zIndex: 2
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <ArrowDownRight size={18} color="#4ADE80" />
@@ -75,6 +68,13 @@ export default function Dashboard({ isAdmin, activeYear, onUpdate, onNavigateTab
               <span style={{ fontSize: 14, fontWeight: 900 }}>{fmt(summary.kharch)}</span>
             </div>
           </div>
+        </div>
+
+        <div style={{ position: 'relative', zIndex: 2, marginTop: 14 }}>
+          <span style={{ fontSize: 11, fontWeight: 800, opacity: 0.85, letterSpacing: 0.8, textTransform: 'uppercase' }}>Available Balance</span>
+          <h2 style={{ fontSize: 34, fontWeight: 900, margin: '4px 0 0 0', letterSpacing: -0.5, color: '#ffffff' }}>
+            Rs. {Number(summary.balance).toLocaleString('en-IN')}
+          </h2>
         </div>
       </div>
 

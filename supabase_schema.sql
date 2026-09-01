@@ -125,6 +125,20 @@ INSERT INTO public.app_settings (setting_key, setting_value)
 VALUES ('global', '{"active_year":"2026-27"}'::JSONB)
 ON CONFLICT (setting_key) DO NOTHING;
 
+-- Move the current hard-coded Income and Expense category lists into shared
+-- server settings. Existing category settings are preserved on reruns.
+UPDATE public.app_settings
+SET setting_value = setting_value
+    || CASE WHEN setting_value ? 'income_categories' THEN '{}'::JSONB ELSE jsonb_build_object('income_categories', jsonb_build_array(
+        'Sponsorship / Awards', 'Stall / Banner Rental', 'Cultural Program Fund', 'Interest Income', 'Other Income'
+    )) END
+    || CASE WHEN setting_value ? 'expense_categories' THEN '{}'::JSONB ELSE jsonb_build_object('expense_categories', jsonb_build_array(
+        'Mandap & Decoration', 'Lighting & Illumination', 'Sound System & DJ', 'Pooja & Prasadam',
+        'Band & Dhol-Tasha', 'Visarjan Procession', 'Annadaan / Feast', 'Security & Police',
+        'Transportation', 'Miscellaneous Expenses', 'Other Expense'
+    )) END
+WHERE setting_key = 'global';
+
 -- ====================================================================
 -- EXISTING-DEPLOYMENT UPGRADES
 -- ====================================================================

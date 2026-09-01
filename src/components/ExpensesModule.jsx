@@ -3,23 +3,10 @@ import { Plus, Search, Edit, Trash2, X, ArrowUpCircle, Languages, Lock, ChevronD
 import { transliterateText } from '../utils/marathiTransliterate';
 import { createRecord, deleteRecord, updateRecord } from '../services/supabase';
 import { calculateTreasuryBalances } from '../utils/ledger';
+import { getExpenseCategories } from '../utils/categories';
+import ModalPortal from './ModalPortal';
 
-const EXPENSE_CATEGORIES = [
-  'All',
-  'Mandap & Decoration',
-  'Lighting & Illumination',
-  'Sound System & DJ',
-  'Pooja & Prasadam',
-  'Band & Dhol-Tasha',
-  'Visarjan Procession',
-  'Annadaan / Feast',
-  'Security & Police',
-  'Transportation',
-  'Miscellaneous Expenses',
-  'Other Expense'
-];
-
-export default function ExpensesModule({ isAdmin, activeYear, onUpdate, data = {} }) {
+export default function ExpensesModule({ isAdmin, activeYear, onUpdate, data = {}, settings = {} }) {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showModal, setShowModal] = useState(false);
@@ -29,7 +16,8 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate, data = {
 
   // Form State
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('Mandap & Decoration');
+  const expenseCategories = getExpenseCategories(settings);
+  const [category, setCategory] = useState(() => expenseCategories[0] || 'Other Expense');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentMode, setPaymentMode] = useState('Cash');
@@ -74,7 +62,7 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate, data = {
     } else {
       setEditItem(null);
       setTitle('');
-      setCategory('Mandap & Decoration');
+      setCategory(expenseCategories[0] || 'Other Expense');
       setAmount('');
       setDate(new Date().toISOString().split('T')[0]);
       setPaymentMode('Cash');
@@ -186,7 +174,7 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate, data = {
 
       {/* Category Filter Horizontal Pills Bar */}
       <div data-disable-page-swipe="true" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, marginBottom: 12 }}>
-        {EXPENSE_CATEGORIES.map(cat => (
+        {['All', ...expenseCategories].map(cat => (
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
@@ -322,8 +310,9 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate, data = {
 
       {/* Add/Edit Modal */}
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+        <ModalPortal>
+          <div className="modal-overlay" onClick={() => setShowModal(false)}>
+            <div className="modal-sheet" onClick={e => e.stopPropagation()}>
             <div className="sheet-pill" />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <h3 style={{ fontSize: 18, fontWeight: 900, color: '#DC2626' }}>
@@ -368,7 +357,7 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate, data = {
                   value={category}
                   onChange={e => setCategory(e.target.value)}
                 >
-                  {EXPENSE_CATEGORIES.filter(c => c !== 'All').map(c => <option key={c} value={c}>{c}</option>)}
+                  {expenseCategories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
 
@@ -424,8 +413,9 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate, data = {
                 {isSaving ? 'Saving…' : editItem ? 'Update Expense' : 'Save Expense'}
               </button>
             </form>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

@@ -436,6 +436,36 @@ export async function updateRecord(table, id, payload) {
   return data;
 }
 
+/** Returns how many server records currently use a managed income/expense category. */
+export async function countCategoryUsage(table, category) {
+  const target = assertDataTable(table);
+  if (target !== 'jama' && target !== 'kharch') {
+    throw new Error('Categories can be managed only for income and expense entries.');
+  }
+
+  const result = await requireSupabase()
+    .from(target)
+    .select('id', { count: 'exact', head: true })
+    .eq('category', String(category || '').trim());
+  assertResult('check category usage', target, result);
+  return Number(result.count) || 0;
+}
+
+/** Renames a category on every record that currently uses it. */
+export async function renameCategoryRecords(table, previousCategory, nextCategory) {
+  const target = assertDataTable(table);
+  if (target !== 'jama' && target !== 'kharch') {
+    throw new Error('Categories can be managed only for income and expense entries.');
+  }
+
+  const result = await requireSupabase()
+    .from(target)
+    .update({ category: String(nextCategory || '').trim() })
+    .eq('category', String(previousCategory || '').trim())
+    .select('id');
+  return assertResult('rename category', target, result) || [];
+}
+
 /** Deletes one record and verifies that Supabase actually deleted it. */
 export async function deleteRecord(table, id) {
   const target = assertDataTable(table);

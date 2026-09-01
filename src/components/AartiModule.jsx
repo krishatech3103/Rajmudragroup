@@ -373,6 +373,7 @@ import { Plus, Search, Calendar, Clock, Sun, Moon, Edit, Trash2, X, Flame, Langu
 import { transliterateText } from '../utils/marathiTransliterate';
 import { createRecord, deleteRecord, updateRecord } from '../services/supabase';
 import { generateAartiSchedulePDF } from '../utils/pdf';
+import ModalPortal from './ModalPortal';
 
 export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }) {
   const [search, setSearch] = useState('');
@@ -691,8 +692,9 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }
 
       {/* Add/Edit Modal */}
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+        <ModalPortal>
+          <div className="modal-overlay" onClick={() => setShowModal(false)}>
+            <div className="modal-sheet" onClick={e => e.stopPropagation()}>
             <div className="sheet-pill" />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <h3 style={{ fontSize: 18, fontWeight: 900, color: '#D84315' }}>
@@ -824,8 +826,9 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }
                 {isSaving ? 'Saving…' : editItem ? 'Update Aarti Schedule' : 'Save Aarti Schedule'}
               </button>
             </form>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

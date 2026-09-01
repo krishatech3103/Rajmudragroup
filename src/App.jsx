@@ -477,8 +477,8 @@ export default function App() {
         {activeTab === 'vargani' && <DonationsModule isAdmin={isAdmin} activeYear={activeYear} data={data} onUpdate={handleDataChange} initialFilter={donationFilter} />}
         {activeTab === 'aarti' && <AartiModule isAdmin={isAdmin} activeYear={activeYear} data={data} onUpdate={handleDataChange} />}
         {activeTab === 'bank' && <BankModule isAdmin={isAdmin} activeYear={activeYear} data={data} onUpdate={handleDataChange} />}
-        {activeTab === 'jama' && <IncomeModule isAdmin={isAdmin} activeYear={activeYear} data={data} onUpdate={handleDataChange} />}
-        {activeTab === 'kharch' && <ExpensesModule isAdmin={isAdmin} activeYear={activeYear} data={data} onUpdate={handleDataChange} />}
+        {activeTab === 'jama' && <IncomeModule isAdmin={isAdmin} activeYear={activeYear} data={data} settings={settings} onUpdate={handleDataChange} />}
+        {activeTab === 'kharch' && <ExpensesModule isAdmin={isAdmin} activeYear={activeYear} data={data} settings={settings} onUpdate={handleDataChange} />}
         {activeTab === 'reports' && <ReportsModule activeYear={activeYear} data={data} />}
         {activeTab === 'settings' && (isAdmin
           ? <SettingsModal settings={settings} onClose={() => handleTabChange('dashboard')} onSettingsChange={handleSettingsChange} onUpdate={() => loadYearData(activeYearRef.current)} />

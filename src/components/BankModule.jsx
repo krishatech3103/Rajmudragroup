@@ -3,6 +3,7 @@ import { Landmark, Plus, Search, Edit, Trash2, X, Lock, RefreshCw, ArrowLeftRigh
 import { createRecord, deleteRecord, updateRecord } from '../services/supabase';
 import { calculateBankFDSummary, calculateTreasuryBalances, deriveYearFromDate } from '../utils/ledger';
 import { generateBankTreasuryPDF } from '../utils/pdf';
+import ModalPortal from './ModalPortal';
 
 const YEARS = ['2026-27', '2025-26', '2024-25', '2027-28', '2023-24'];
 export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} }) {
@@ -397,8 +398,9 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
 
       {/* Add / Edit Modal */}
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+        <ModalPortal>
+          <div className="modal-overlay" onClick={() => setShowModal(false)}>
+            <div className="modal-sheet" onClick={e => e.stopPropagation()}>
             <div className="sheet-pill" />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <h3 style={{ fontSize: 18, fontWeight: 900, color: '#047857' }}>
@@ -512,8 +514,9 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
                 {isSaving ? 'Saving…' : editItem ? 'Update FD Entry' : formMode === 'new_fd' ? 'Add New FD' : formMode === 'withdraw_fd' ? 'Withdraw Selected FD' : 'Renew Selected FD'}
               </button>
             </form>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );
