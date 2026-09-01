@@ -35,11 +35,11 @@ export default function SettingsModal({ settings = {}, onClose, onSettingsChange
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `rajmudra_supabase_backup_${activeYear}_${Date.now()}.json`;
+      anchor.download = `rajmudra_backup_${activeYear}_${Date.now()}.json`;
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (error) {
-      alert(`Could not export the Supabase backup: ${error.message}`);
+      alert(`Could not export the backup: ${error.message}`);
     } finally {
       setIsExporting(false);
     }
@@ -61,7 +61,7 @@ export default function SettingsModal({ settings = {}, onClose, onSettingsChange
           data.settings = { active_year: rawData.settings.active_year };
         }
 
-        if (!confirm('Import this backup into Supabase? This is a manual restore and can intentionally re-add records that were deleted after the backup was created.')) {
+        if (!confirm('Import this backup? This is a manual restore and can intentionally re-add records that were deleted after the backup was created.')) {
           return;
         }
 
@@ -70,7 +70,7 @@ export default function SettingsModal({ settings = {}, onClose, onSettingsChange
         const updatedSettings = await fetchSettings();
         await onSettingsChange?.(updatedSettings);
         await onUpdate?.();
-        alert('Backup data was imported into Supabase successfully.');
+        alert('Backup data was imported successfully.');
         onClose?.();
       } catch (error) {
         alert(`Import Error: ${error.message}`);
@@ -126,12 +126,12 @@ export default function SettingsModal({ settings = {}, onClose, onSettingsChange
           <ShieldCheck size={18} /> Access-control note
         </h4>
         <p style={{ fontSize: 12, color: '#92400E', fontWeight: 600, margin: 0, lineHeight: 1.5 }}>
-          Access is controlled by Supabase Auth and server-side roles: viewers can only read, while admins can change records. Passwords and PINs are never saved in app settings or ledger data.
+          Access is controlled by secure sign-in and server-side roles: viewers can only read, while admins can change records. Passwords and PINs are never saved in app settings or ledger data.
         </p>
       </div>
 
       <CollapsibleSection
-        title="Supabase data backup"
+        title="Data backup"
         summary="Export or intentionally restore server data"
         style={{ marginBottom: 14 }}
       >
@@ -145,13 +145,13 @@ export default function SettingsModal({ settings = {}, onClose, onSettingsChange
             disabled={isExporting || isImporting}
             style={{ padding: 12, fontSize: 13, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: isExporting ? 0.7 : 1 }}
           >
-            <Download size={18} /> {isExporting ? 'Exporting from Supabase…' : 'Export JSON Backup'}
+            <Download size={18} /> {isExporting ? 'Exporting backup…' : 'Export JSON Backup'}
           </button>
           <label
             className="btn btn-secondary"
             style={{ padding: 12, fontSize: 13, borderRadius: 14, cursor: isImporting ? 'not-allowed' : 'pointer', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: isImporting ? 0.7 : 1 }}
           >
-            <Upload size={18} /> {isImporting ? 'Importing to Supabase…' : 'Import JSON Backup'}
+            <Upload size={18} /> {isImporting ? 'Importing backup…' : 'Import JSON Backup'}
             <input type="file" accept=".json,application/json" onChange={handleImportJSON} disabled={isImporting || isExporting} style={{ display: 'none' }} />
           </label>
         </div>

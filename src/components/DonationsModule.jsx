@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Plus, Search, MessageSquare, Edit, Trash2, X, HeartHandshake, Languages, ChevronDown, ChevronUp, History, CheckCircle2, Clock, CreditCard, Banknote, Tag } from 'lucide-react';
 import { generateWhatsAppReceipt } from '../utils/whatsapp';
 import { transliterateText } from '../utils/marathiTransliterate';
@@ -34,6 +34,12 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
   const receivedByMode = calculatePaymentModeTotals(varganiList, { excludePending: true });
   const totalVargani = receivedByMode.cash + receivedByMode.online;
   const paidDonationCount = varganiList.filter(v => (v.status || 'paid') === 'paid').length;
+  const pendingDonations = varganiList.filter(v => v.status === 'pending');
+  const pendingDonationAmount = pendingDonations.reduce((sum, donation) => sum + Number(donation.amount || 0), 0);
+
+  useEffect(() => {
+    setStatusFilter(initialFilter);
+  }, [initialFilter]);
 
   const filtered = varganiList.filter(v => {
     const vStatus = v.status || 'paid';
@@ -54,7 +60,9 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
       setAmount(item.amount);
       setPaymentMode(item.payment_mode || 'Cash');
       setStatus(item.status || 'paid');
-      setDate(item.date);
+      // An edit represents the latest donation/payment update, so the date
+      // shown on the receipt row moves to today when it is saved.
+      setDate(new Date().toISOString().split('T')[0]);
       setReceiptNo(item.receipt_no || '');
       setNote(item.note || '');
     } else {
@@ -104,9 +112,12 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
         phone: phone.trim() || memberObj.phone,
         year: activeYear,
         amount: numAmt,
-        payment_mode: paymentMode,
+        // Pending donations have no payment method yet. The database column
+        // remains non-null for compatibility, while every display and ledger
+        // calculation ignores the value until the donation is marked paid.
+        payment_mode: status === 'paid' ? paymentMode : 'Cash',
         status,
-        date,
+        date: editItem ? new Date().toISOString().split('T')[0] : date,
         receipt_no: receiptNo.trim(),
         note: note.trim()
       };
@@ -122,17 +133,6 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
       alert(`Could not save the donation: ${error.message}`);
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const toggleStatus = async (item) => {
-    if (!isAdmin) return;
-    const nextStatus = (item.status || 'paid') === 'paid' ? 'pending' : 'paid';
-    try {
-      const record = await updateRecord('vargani', item.id, { status: nextStatus });
-      onUpdate?.({ table: 'vargani', eventType: 'UPSERT', record });
-    } catch (error) {
-      alert(`Could not update the donation status: ${error.message}`);
     }
   };
 
@@ -222,7 +222,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
           className={`category-pill ${statusFilter === 'pending' ? 'active' : ''}`}
           style={{ background: statusFilter === 'pending' ? '#D97706' : undefined, borderColor: statusFilter === 'pending' ? '#D97706' : undefined }}
         >
-          Pending (बाकी: {varganiList.filter(v => v.status === 'pending').length})
+          Pending (बाकी: {pendingDonations.length} · Rs. {pendingDonationAmount.toLocaleString('en-IN')})
         </button>
       </div>
 
@@ -263,7 +263,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
             const isExpanded = expandedId === v.id;
             const isPaid = (v.status || 'paid') === 'paid';
             const itemPrefix = v.prefix || 'श्री';
-            const isUPI = v.payment_mode === 'UPI';
+            const isUPI = isPaid && v.payment_mode === 'UPI';
 
             return (
               <div
@@ -280,43 +280,42 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
                 onClick={() => toggleExpand(v.id)}
               >
                 {/* Main Card Summary Row */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%', gap: 10 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
                       <span style={{ fontSize: 11, fontWeight: 800, color: '#FF5722', background: '#FFF7ED', padding: '1px 5px', borderRadius: 6, border: '1px solid #FFEDD5', flexShrink: 0 }}>
                         {itemPrefix}
                       </span>
-                      <h4 style={{ fontSize: 15, fontWeight: 900, margin: 0, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <h4 style={{ flex: 1, minWidth: 0, fontSize: 16, fontWeight: 900, lineHeight: 1.3, margin: 0, color: '#0F172A', overflowWrap: 'anywhere' }}>
                         {v.member_name}
                       </h4>
+                    </div>
 
-                      {/* Payment Status & Mode Badges Inline Together */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                        <span
-                          onClick={(e) => { e.stopPropagation(); toggleStatus(v); }}
-                          style={{
-                            background: isPaid ? '#DCFCE7' : '#FEF3C7',
-                            color: isPaid ? '#15803D' : '#B45309',
-                            border: isPaid ? '1px solid #86EFAC' : '1px solid #FDE68A',
-                            padding: '2px 6px', borderRadius: 6, fontSize: 10, fontWeight: 800,
-                            cursor: isAdmin ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 3
-                          }}
-                        >
-                          {isPaid ? <CheckCircle2 size={11} /> : <Clock size={11} />}
-                          {isPaid ? 'PAID' : 'PENDING'}
-                        </span>
-
-                        <span style={{
-                          background: isUPI ? '#EFF6FF' : '#F8FAFC',
-                          color: isUPI ? '#2563EB' : '#475569',
-                          border: isUPI ? '1px solid #BFDBFE' : '1px solid #E2E8F0',
+                    {/* Payment status is on its own line so it never hides the member name. */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
+                      <span
+                        style={{
+                          background: isPaid ? '#DCFCE7' : '#FEF3C7',
+                          color: isPaid ? '#15803D' : '#B45309',
+                          border: isPaid ? '1px solid #86EFAC' : '1px solid #FDE68A',
                           padding: '2px 6px', borderRadius: 6, fontSize: 10, fontWeight: 800,
-                          display: 'flex', alignItems: 'center', gap: 3
-                        }}>
-                          {isUPI ? <CreditCard size={11} /> : <Banknote size={11} />}
-                          {isUPI ? 'UPI' : 'Cash'}
-                        </span>
-                      </div>
+                          cursor: 'default', display: 'flex', alignItems: 'center', gap: 3
+                        }}
+                      >
+                        {isPaid ? <CheckCircle2 size={11} /> : <Clock size={11} />}
+                        {isPaid ? 'PAID' : 'PENDING'}
+                      </span>
+
+                      {isPaid && <span style={{
+                        background: isUPI ? '#EFF6FF' : '#F8FAFC',
+                        color: isUPI ? '#2563EB' : '#475569',
+                        border: isUPI ? '1px solid #BFDBFE' : '1px solid #E2E8F0',
+                        padding: '2px 6px', borderRadius: 6, fontSize: 10, fontWeight: 800,
+                        display: 'flex', alignItems: 'center', gap: 3
+                      }}>
+                        {isUPI ? <CreditCard size={11} /> : <Banknote size={11} />}
+                        {isUPI ? 'UPI' : 'Cash'}
+                      </span>}
                     </div>
 
                     <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, margin: '4px 0 0 0' }}>
@@ -513,8 +512,8 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
                 />
               </div>
 
-              {/* Payment Mode Selector: Cash vs UPI */}
-              <div className="input-group">
+              {/* Payment Mode is recorded only after the donation is paid. */}
+              {status === 'paid' && <div className="input-group">
                 <label className="input-label">Payment Mode *</label>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button
@@ -547,7 +546,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
                     <CreditCard size={16} /> Online / UPI
                   </button>
                 </div>
-              </div>
+              </div>}
 
               {/* Status Picker: Paid vs Pending */}
               <div className="input-group">
@@ -598,12 +597,13 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
                 </div>
 
                 <div className="input-group">
-                  <label className="input-label">Date</label>
+                  <label className="input-label">{editItem ? 'Updated Date' : 'Date'}</label>
                   <input
                     type="date"
                     className="input-field"
                     value={date}
                     onChange={e => setDate(e.target.value)}
+                    disabled={Boolean(editItem)}
                   />
                 </div>
               </div>
@@ -620,7 +620,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
               </div>
 
               <button type="submit" className="btn btn-primary" disabled={isSaving} style={{ marginTop: 14, width: '100%', opacity: isSaving ? 0.7 : 1 }}>
-                {isSaving ? 'Saving to Supabase…' : editItem ? 'Update Donation' : 'Save & Issue Receipt'}
+                {isSaving ? 'Saving…' : editItem ? 'Update Donation' : 'Save & Issue Receipt'}
               </button>
             </form>
           </div>

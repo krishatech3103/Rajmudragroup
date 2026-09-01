@@ -247,6 +247,7 @@ export function calculateSummary(year, data = {}) {
   const paidVarganiList = varganiList.filter((record) => (record?.status || 'paid') === 'paid');
   const pendingVarganiList = varganiList.filter((record) => record?.status === 'pending');
   const vargani = paidVarganiList.reduce((sum, record) => sum + toAmount(record?.amount), 0);
+  const pendingVargani = pendingVarganiList.reduce((sum, record) => sum + toAmount(record?.amount), 0);
   const jama = jamaList.reduce((sum, record) => sum + toAmount(record?.amount), 0);
   const kharch = kharchList.reduce((sum, record) => sum + toAmount(record?.amount), 0);
   const income = vargani + jama;
@@ -270,6 +271,7 @@ export function calculateSummary(year, data = {}) {
     membersCount,
     paidMembersCount,
     pendingMembersCount,
+    pendingVargani,
     paidVarganiCount: paidVarganiList.length,
     pendingVarganiCount: pendingVarganiList.length,
     bank_fd_balance: fdSummary.current_fd_balance

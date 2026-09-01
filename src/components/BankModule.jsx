@@ -509,7 +509,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
               </div>
 
               <button type="submit" className="btn btn-success" disabled={isSaving} style={{ marginTop: 14, width: '100%', background: '#047857', borderColor: '#047857', opacity: isSaving ? 0.7 : 1 }}>
-                {isSaving ? 'Saving to Supabase…' : editItem ? 'Update FD Entry' : formMode === 'new_fd' ? 'Add New FD' : formMode === 'withdraw_fd' ? 'Withdraw Selected FD' : 'Renew Selected FD'}
+                {isSaving ? 'Saving…' : editItem ? 'Update FD Entry' : formMode === 'new_fd' ? 'Add New FD' : formMode === 'withdraw_fd' ? 'Withdraw Selected FD' : 'Renew Selected FD'}
               </button>
             </form>
           </div>

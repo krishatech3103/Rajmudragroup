@@ -421,7 +421,7 @@ export default function ExpensesModule({ isAdmin, activeYear, onUpdate, data = {
               </div>
 
               <button type="submit" className="btn btn-danger" disabled={isSaving} style={{ marginTop: 14, width: '100%', opacity: isSaving ? 0.7 : 1 }}>
-                {isSaving ? 'Saving to Supabase…' : editItem ? 'Update Expense' : 'Save Expense'}
+                {isSaving ? 'Saving…' : editItem ? 'Update Expense' : 'Save Expense'}
               </button>
             </form>
           </div>

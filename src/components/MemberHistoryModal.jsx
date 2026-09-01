@@ -50,7 +50,7 @@ export default function MemberHistoryModal({ member, onClose }) {
 
         {isLoading ? (
           <p style={{ fontSize: 13, color: '#64748B', padding: '20px 0', textAlign: 'center' }}>
-            Loading donation history from Supabase…
+            Loading donation history…
           </p>
         ) : loadError ? (
           <p style={{ fontSize: 13, color: '#B91C1C', padding: '20px 0', textAlign: 'center' }}>

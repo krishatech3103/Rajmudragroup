@@ -585,7 +585,7 @@ export default function IncomeModule({ isAdmin, activeYear, onUpdate, data = {} 
               </div>
 
               <button type="submit" className="btn btn-success" disabled={isSaving} style={{ marginTop: 14, width: '100%', opacity: isSaving ? 0.7 : 1 }}>
-                {isSaving ? 'Saving to Supabase…' : editItem ? 'Update Income Entry' : 'Save Income Entry'}
+                {isSaving ? 'Saving…' : editItem ? 'Update Income Entry' : 'Save Income Entry'}
               </button>
             </form>
           </div>

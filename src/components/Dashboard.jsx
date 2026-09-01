@@ -230,7 +230,7 @@ export default function Dashboard({ isAdmin, activeYear, onUpdate, onNavigateTab
 
         <div
           className="luxe-card"
-          onClick={() => { if (onNavigateTab) onNavigateTab('vargani'); }}
+          onClick={() => { if (onNavigateTab) onNavigateTab('vargani', { donationFilter: 'pending' }); }}
           style={{ padding: '14px 10px', textAlign: 'center', cursor: 'pointer', borderRadius: 16, border: '1px solid #FDE68A', background: '#FFFBEB' }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, color: '#B45309' }}>
@@ -240,7 +240,7 @@ export default function Dashboard({ isAdmin, activeYear, onUpdate, onNavigateTab
           <h4 style={{ fontSize: 20, fontWeight: 900, margin: '4px 0 0 0', color: '#B45309' }}>
             {summary.pendingMembersCount}
           </h4>
-          <span style={{ fontSize: 10, color: '#92400E', fontWeight: 700 }}>Payment Due</span>
+          <span style={{ fontSize: 10, color: '#92400E', fontWeight: 700 }}>Rs. {summary.pendingVargani.toLocaleString('en-IN')} due</span>
         </div>
       </div>
       </CollapsibleSection>

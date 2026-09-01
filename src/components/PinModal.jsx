@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Lock, User, Eye, EyeOff, ArrowRight, Calendar } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, ArrowRight, Calendar, LoaderCircle } from 'lucide-react';
 
 // This is only a convenience value for the login form. It is not a password,
 // role, session, or source of permission; Supabase Auth and RLS decide access.
@@ -84,6 +84,16 @@ export default function PinModal({ onLogin, availableYears = [], isLoading = fal
 
   const disabled = lockoutTime > 0 || isLoading || isSubmitting;
   const showUsernameField = useDifferentAccount || !rememberedUsername;
+
+  if (isLoading && !loadError) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: 'radial-gradient(circle at center, #1E293B 0%, #0F172A 70%, #020617 100%)', zIndex: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }} aria-live="polite">
+        <img src="./ganesh_icon.png" alt="Rajmudra Group Emblem" style={{ width: 84, height: 84, borderRadius: 28, objectFit: 'cover', border: '2px solid #FFD700', marginBottom: 20, boxShadow: '0 14px 40px rgba(255, 87, 34, 0.5)' }} />
+        <LoaderCircle size={32} color="#FCD34D" style={{ animation: 'rajmudra-spin 1s linear infinite' }} />
+        <p style={{ color: '#E2E8F0', fontSize: 16, fontWeight: 800, marginTop: 14 }}>Signing in…</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{

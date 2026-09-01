@@ -34,6 +34,42 @@ const EMPTY_DATA = Object.freeze({
   bank_fd: []
 });
 const DEFAULT_YEARS = ['2024-25', '2025-26', '2026-27'];
+const AUTH_TIMEOUT_MS = 30 * 60 * 1000;
+const AUTH_LAST_ACTIVE_AT_KEY = 'rajmudra_auth_last_active_at';
+
+function readLastAuthActivity() {
+  if (typeof window === 'undefined') return 0;
+  try {
+    const timestamp = Number(window.localStorage.getItem(AUTH_LAST_ACTIVE_AT_KEY));
+    return Number.isFinite(timestamp) ? timestamp : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function saveLastAuthActivity() {
+  if (typeof window === 'undefined') return;
+  try {
+    // This timestamp is authentication-only. No password or financial data is stored here.
+    window.localStorage.setItem(AUTH_LAST_ACTIVE_AT_KEY, String(Date.now()));
+  } catch {
+    // Browser storage may be unavailable; the server session continues normally.
+  }
+}
+
+function clearLastAuthActivity() {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(AUTH_LAST_ACTIVE_AT_KEY);
+  } catch {
+    // Browser storage may be unavailable.
+  }
+}
+
+function hasAuthTimedOut() {
+  const lastActivity = readLastAuthActivity();
+  return lastActivity > 0 && Date.now() - lastActivity >= AUTH_TIMEOUT_MS;
+}
 
 function sameId(left, right) {
   return String(left) === String(right);
@@ -78,6 +114,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [donationFilter, setDonationFilter] = useState('all');
   const [activeYear, setActiveYear] = useState(DEFAULT_SETTINGS.active_year);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [availableYears, setAvailableYears] = useState(DEFAULT_YEARS);
@@ -108,12 +145,19 @@ export default function App() {
     setIsAuthLoading(true);
     setAuthError('');
     try {
+      if (hasAuthTimedOut()) {
+        clearLastAuthActivity();
+        await signOut({ scope: 'local' }).catch(() => undefined);
+        return;
+      }
+
       const identity = await restoreAuthenticatedUser();
       if (!identity) return;
+      saveLastAuthActivity();
       setIsAdmin(identity.role === 'admin');
       setIsAuthenticated(true);
     } catch (error) {
-      setAuthError(error.message || 'Could not restore the secure Supabase session.');
+      setAuthError(error.message || 'Could not restore the secure login session.');
     } finally {
       setIsAuthLoading(false);
     }
@@ -272,7 +316,12 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [activeTab]);
 
-  const handleTabChange = (newTab) => {
+  const handleTabChange = (newTab, options = {}) => {
+    if (newTab === 'vargani') {
+      setDonationFilter(options.donationFilter === 'pending' || options.donationFilter === 'paid'
+        ? options.donationFilter
+        : 'all');
+    }
     if (newTab !== activeTab) {
       window.history.pushState({ tab: newTab }, '');
       setActiveTab(newTab);
@@ -320,6 +369,7 @@ export default function App() {
 
   const handleLogin = async ({ username, password, selectedYear }) => {
     const identity = await signInWithUsername(username, password);
+    saveLastAuthActivity();
     const year = selectedYear || settings.active_year || DEFAULT_SETTINGS.active_year;
     activeYearRef.current = year;
     selectedLoginYearRef.current = year;
@@ -333,13 +383,14 @@ export default function App() {
     await applySettings(updatedSettings, { loadSelectedYear: true });
   };
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(({ localOnly = false } = {}) => {
     dataRequestRef.current += 1;
-    void signOut().catch(error => {
+    void signOut(localOnly ? { scope: 'local' } : undefined).catch(error => {
       // The local UI is already locked. This warning helps diagnose a network
       // failure without exposing any ledger state after a manual logout.
       console.warn('Could not notify Supabase about logout:', error);
     });
+    clearLastAuthActivity();
     bootstrapStartedRef.current = false;
     availableYearsLoadedRef.current = false;
     selectedLoginYearRef.current = '';
@@ -350,7 +401,38 @@ export default function App() {
     setDataError('');
     setSettingsError('');
     setIsSettingsLoading(true);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return undefined;
+
+    let hasEndedSession = false;
+    const endExpiredSession = () => {
+      if (hasEndedSession || !hasAuthTimedOut()) return;
+      hasEndedSession = true;
+      handleLogout({ localOnly: true });
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        saveLastAuthActivity();
+        return;
+      }
+
+      endExpiredSession();
+      if (!hasEndedSession) saveLastAuthActivity();
+    };
+    const recordLastActiveTime = () => saveLastAuthActivity();
+    const activityTimer = window.setInterval(recordLastActiveTime, 60 * 1000);
+
+    saveLastAuthActivity();
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', recordLastActiveTime);
+    return () => {
+      window.clearInterval(activityTimer);
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', recordLastActiveTime);
+    };
+  }, [handleLogout, isAuthenticated]);
 
   if (!isAuthenticated) {
     return (
@@ -381,7 +463,7 @@ export default function App() {
       <main className="content-wrapper">
         {isDataLoading && (
           <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 12, background: '#EFF6FF', color: '#1D4ED8', fontSize: 13, fontWeight: 700 }}>
-            Loading the latest data from Supabase…
+            Loading the latest data…
           </div>
         )}
         {dataError && (
@@ -392,7 +474,7 @@ export default function App() {
         )}
 
         {activeTab === 'dashboard' && <Dashboard isAdmin={isAdmin} activeYear={activeYear} data={data} onNavigateTab={handleTabChange} />}
-        {activeTab === 'vargani' && <DonationsModule isAdmin={isAdmin} activeYear={activeYear} data={data} onUpdate={handleDataChange} />}
+        {activeTab === 'vargani' && <DonationsModule isAdmin={isAdmin} activeYear={activeYear} data={data} onUpdate={handleDataChange} initialFilter={donationFilter} />}
         {activeTab === 'aarti' && <AartiModule isAdmin={isAdmin} activeYear={activeYear} data={data} onUpdate={handleDataChange} />}
         {activeTab === 'bank' && <BankModule isAdmin={isAdmin} activeYear={activeYear} data={data} onUpdate={handleDataChange} />}
         {activeTab === 'jama' && <IncomeModule isAdmin={isAdmin} activeYear={activeYear} data={data} onUpdate={handleDataChange} />}

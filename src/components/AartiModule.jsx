@@ -821,7 +821,7 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }
               </div>
 
               <button type="submit" className="btn btn-primary" disabled={isSaving} style={{ marginTop: 14, width: '100%', opacity: isSaving ? 0.7 : 1 }}>
-                {isSaving ? 'Saving to Supabase…' : editItem ? 'Update Aarti Schedule' : 'Save Aarti Schedule'}
+                {isSaving ? 'Saving…' : editItem ? 'Update Aarti Schedule' : 'Save Aarti Schedule'}
               </button>
             </form>
           </div>

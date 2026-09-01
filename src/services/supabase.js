@@ -72,7 +72,7 @@ function requireSupabase() {
   const supabase = getSupabase();
   if (!supabase) {
     throw new Error(
-      'Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY before using the data service.'
+      'The data connection is not configured. Please contact the administrator.'
     );
   }
   return supabase;
@@ -100,11 +100,8 @@ function assertId(id) {
 }
 
 function toSupabaseError(operation, table, error) {
-  const details = [error?.message, error?.details, error?.hint]
-    .filter(Boolean)
-    .join(' — ');
   const wrapped = new Error(
-    `Supabase ${operation} failed for "${table}": ${details || 'Unknown database error.'}`
+    `Could not ${operation} the data. Please check your connection and try again.`
   );
   if (error?.code) wrapped.code = error.code;
   if (error) wrapped.cause = error;
@@ -136,7 +133,7 @@ function normaliseYear(year) {
 // ── Authentication and roles ──────────────────────────────────────────────
 
 async function getAuthorizedUser(user) {
-  if (!user?.id) throw new Error('Supabase did not return a signed-in user.');
+  if (!user?.id) throw new Error('Could not confirm the signed-in user. Please try again.');
 
   const supabase = requireSupabase();
   const result = await supabase
@@ -196,7 +193,7 @@ export async function signInWithUsername(username, password) {
     throw new Error('Username may contain only letters, numbers, dots, underscores, and hyphens.');
   }
   if (!AUTH_USERNAME_DOMAIN || !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(AUTH_USERNAME_DOMAIN)) {
-    throw new Error('Supabase username login is not configured. Set VITE_AUTH_USERNAME_DOMAIN.');
+    throw new Error('Username login is not configured. Please contact the administrator.');
   }
 
   return signInWithPassword(`${cleanUsername}@${AUTH_USERNAME_DOMAIN}`, password);
@@ -227,9 +224,9 @@ export async function restoreAuthenticatedUser() {
   }
 }
 
-/** Clears the locally persisted Supabase session without touching server data. */
-export async function signOut() {
-  const result = await requireSupabase().auth.signOut();
+/** Clears the persisted sign-in session. Local scope works even while offline. */
+export async function signOut({ scope = 'global' } = {}) {
+  const result = await requireSupabase().auth.signOut({ scope });
   assertResult('sign out', 'authentication', result);
 }
 
@@ -435,7 +432,7 @@ export async function updateRecord(table, id, payload) {
   const supabase = requireSupabase();
   const result = await supabase.from(target).update(payload).eq('id', id).select().maybeSingle();
   const data = assertResult('update', target, result);
-  if (!data) throw new Error(`Supabase update failed for "${target}": record "${id}" was not found.`);
+  if (!data) throw new Error('Could not update this record because it was not found.');
   return data;
 }
 
@@ -446,7 +443,7 @@ export async function deleteRecord(table, id) {
   const supabase = requireSupabase();
   const result = await supabase.from(target).delete().eq('id', id).select('id').maybeSingle();
   const data = assertResult('delete', target, result);
-  if (!data) throw new Error(`Supabase delete failed for "${target}": record "${id}" was not found.`);
+  if (!data) throw new Error('Could not delete this record because it was not found.');
   return data;
 }
 
@@ -465,7 +462,7 @@ export async function deleteDonationRecord(id) {
   const row = Array.isArray(rows) ? rows[0] : rows;
 
   if (!row?.deleted_vargani_id) {
-    throw new Error(`Supabase delete failed for "vargani": record "${donationId}" was not found.`);
+    throw new Error('Could not delete this donation because it was not found.');
   }
 
   return {
