@@ -291,38 +291,25 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
                       </h4>
                     </div>
 
-                    {/* Payment status is on its own line so it never hides the member name. */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 6, fontSize: 12, color: '#64748B', fontWeight: 600 }}>
+                      <span>📅 {new Date(v.date).toLocaleDateString('en-IN')}</span>
+                      {v.receipt_no && <span>• पावती क्र.: {v.receipt_no}</span>}
                       <span
-                        style={{
-                          background: isPaid ? '#DCFCE7' : '#FEF3C7',
-                          color: isPaid ? '#15803D' : '#B45309',
-                          border: isPaid ? '1px solid #86EFAC' : '1px solid #FDE68A',
-                          padding: '2px 6px', borderRadius: 6, fontSize: 10, fontWeight: 800,
-                          cursor: 'default', display: 'flex', alignItems: 'center', gap: 3
-                        }}
+                        title={isPaid ? 'Paid' : 'Pending'}
+                        aria-label={isPaid ? 'Paid' : 'Pending'}
+                        style={{ display: 'flex', color: isPaid ? '#15803D' : '#B45309' }}
                       >
-                        {isPaid ? <CheckCircle2 size={11} /> : <Clock size={11} />}
-                        {isPaid ? 'PAID' : 'PENDING'}
+                        {isPaid ? <CheckCircle2 size={16} /> : <Clock size={16} />}
                       </span>
-
-                      {isPaid && <span style={{
-                        background: isUPI ? '#EFF6FF' : '#F8FAFC',
-                        color: isUPI ? '#2563EB' : '#475569',
-                        border: isUPI ? '1px solid #BFDBFE' : '1px solid #E2E8F0',
-                        padding: '2px 6px', borderRadius: 6, fontSize: 10, fontWeight: 800,
-                        display: 'flex', alignItems: 'center', gap: 3
-                      }}>
-                        {isUPI ? <CreditCard size={11} /> : <Banknote size={11} />}
-                        {isUPI ? 'UPI' : 'Cash'}
+                      {isPaid && <span
+                        title={isUPI ? 'Online / UPI' : 'Cash'}
+                        aria-label={isUPI ? 'Online / UPI' : 'Cash'}
+                        style={{ display: 'flex', color: isUPI ? '#2563EB' : '#475569' }}
+                      >
+                        {isUPI ? <CreditCard size={16} /> : <Banknote size={16} />}
                       </span>}
                     </div>
-
-                    <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, margin: '4px 0 0 0' }}>
-                      📅 {new Date(v.date).toLocaleDateString('en-IN')}
-                      {v.receipt_no ? ` • पावती क्र.: ${v.receipt_no}` : ''}
-                      {v.note ? ` • 📌 ${v.note}` : ''}
-                    </p>
+                    {v.note && <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, margin: '4px 0 0 0', overflowWrap: 'anywhere' }}>📌 {v.note}</p>}
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
@@ -490,17 +477,6 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
               </div>
 
               <div className="input-group">
-                <label className="input-label">Mobile / WhatsApp No.</label>
-                <input
-                  type="tel"
-                  className="input-field"
-                  value={phone}
-                  onChange={e => setPhone(e.target.value)}
-                  placeholder="e.g. 9876543210"
-                />
-              </div>
-
-              <div className="input-group">
                 <label className="input-label">Amount (Rs.) *</label>
                 <input
                   type="number"
@@ -511,42 +487,6 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
                   required
                 />
               </div>
-
-              {/* Payment Mode is recorded only after the donation is paid. */}
-              {status === 'paid' && <div className="input-group">
-                <label className="input-label">Payment Mode *</label>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMode('Cash')}
-                    style={{
-                      flex: 1, padding: '10px', borderRadius: 12,
-                      border: paymentMode === 'Cash' ? '2px solid #2563EB' : '1px solid #CBD5E1',
-                      background: paymentMode === 'Cash' ? '#EFF6FF' : '#ffffff',
-                      color: paymentMode === 'Cash' ? '#2563EB' : '#64748B',
-                      fontWeight: 800, fontSize: 13, cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
-                    }}
-                  >
-                    <Banknote size={16} /> Cash
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMode('UPI')}
-                    style={{
-                      flex: 1, padding: '10px', borderRadius: 12,
-                      border: paymentMode === 'UPI' ? '2px solid #059669' : '1px solid #CBD5E1',
-                      background: paymentMode === 'UPI' ? '#ECFDF5' : '#ffffff',
-                      color: paymentMode === 'UPI' ? '#059669' : '#64748B',
-                      fontWeight: 800, fontSize: 13, cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
-                    }}
-                  >
-                    <CreditCard size={16} /> Online / UPI
-                  </button>
-                </div>
-              </div>}
 
               {/* Status Picker: Paid vs Pending */}
               <div className="input-group">
@@ -584,6 +524,42 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
                 </div>
               </div>
 
+              {/* Payment mode is chosen only after the donation is marked paid. */}
+              {status === 'paid' && <div className="input-group">
+                <label className="input-label">Payment Mode *</label>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMode('Cash')}
+                    style={{
+                      flex: 1, padding: '10px', borderRadius: 12,
+                      border: paymentMode === 'Cash' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                      background: paymentMode === 'Cash' ? '#EFF6FF' : '#ffffff',
+                      color: paymentMode === 'Cash' ? '#2563EB' : '#64748B',
+                      fontWeight: 800, fontSize: 13, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                    }}
+                  >
+                    <Banknote size={16} /> Cash
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMode('UPI')}
+                    style={{
+                      flex: 1, padding: '10px', borderRadius: 12,
+                      border: paymentMode === 'UPI' ? '2px solid #059669' : '1px solid #CBD5E1',
+                      background: paymentMode === 'UPI' ? '#ECFDF5' : '#ffffff',
+                      color: paymentMode === 'UPI' ? '#059669' : '#64748B',
+                      fontWeight: 800, fontSize: 13, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                    }}
+                  >
+                    <CreditCard size={16} /> Online / UPI
+                  </button>
+                </div>
+              </div>}
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div className="input-group">
                   <label className="input-label">Receipt No.</label>
@@ -606,6 +582,17 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
                     disabled={Boolean(editItem)}
                   />
                 </div>
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Mobile / WhatsApp No.</label>
+                <input
+                  type="tel"
+                  className="input-field"
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  placeholder="e.g. 9876543210"
+                />
               </div>
 
               <div className="input-group">
