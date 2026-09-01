@@ -242,6 +242,12 @@ FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 -- indexes avoid full-table scans as ledger history grows.
 CREATE INDEX IF NOT EXISTS idx_vargani_year_date ON public.vargani(year, date DESC);
 CREATE INDEX IF NOT EXISTS idx_vargani_member_id ON public.vargani(member_id);
+-- Receipt numbers may be blank, but a non-blank receipt can be used only once
+-- in a festival year. The normalized expression also treats "001" and "001 "
+-- (or differently cased text) as the same receipt.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_vargani_year_receipt_no_unique
+ON public.vargani(year, lower(btrim(receipt_no)))
+WHERE btrim(receipt_no) <> '';
 CREATE INDEX IF NOT EXISTS idx_jama_year_date ON public.jama(year, date DESC);
 CREATE INDEX IF NOT EXISTS idx_kharch_year_date ON public.kharch(year, date DESC);
 CREATE INDEX IF NOT EXISTS idx_aarti_year_date ON public.aarti(year, date ASC);

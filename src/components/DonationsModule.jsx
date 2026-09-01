@@ -99,6 +99,16 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
       return;
     }
 
+    const cleanReceiptNo = receiptNo.trim();
+    const duplicateReceipt = cleanReceiptNo && varganiList.some(record => (
+      String(record.id) !== String(editItem?.id || '') &&
+      String(record.receipt_no || '').trim().toLowerCase() === cleanReceiptNo.toLowerCase()
+    ));
+    if (duplicateReceipt) {
+      alert(`Receipt no. ${cleanReceiptNo} is already used in ${activeYear}. Enter a different receipt number.`);
+      return;
+    }
+
     setIsSaving(true);
     try {
       const memberObj = await findOrCreateMember(
@@ -118,7 +128,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
         payment_mode: status === 'paid' ? paymentMode : 'Cash',
         status,
         date: editItem ? new Date().toISOString().split('T')[0] : date,
-        receipt_no: receiptNo.trim(),
+        receipt_no: cleanReceiptNo,
         note: note.trim()
       };
 
@@ -292,7 +302,7 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 6, fontSize: 12, color: '#64748B', fontWeight: 600 }}>
-                      <span>📅 {new Date(v.date).toLocaleDateString('en-IN')}</span>
+                      <span>{new Date(v.date).toLocaleDateString('en-IN')}</span>
                       {v.receipt_no && <span>• पावती क्र.: {v.receipt_no}</span>}
                       <span
                         title={isPaid ? 'Paid' : 'Pending'}
