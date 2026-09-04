@@ -255,11 +255,25 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
         >
           Pending (बाकी: {pendingDonations.length} · Rs. {pendingDonationAmount.toLocaleString('en-IN')})
         </button>
+        <button
+          type="button"
+          className={`category-pill ${receiptSort !== 'none' ? 'active' : ''}`}
+          onClick={() => setReceiptSort(current => current === 'asc' ? 'desc' : 'asc')}
+          title={receiptSort === 'asc' ? 'Receipt number: low to high' : 'Receipt number: high to low'}
+          aria-label={receiptSort === 'asc' ? 'Sort by receipt number descending' : 'Sort by receipt number ascending'}
+          style={{
+            background: receiptSort !== 'none' ? '#1D4ED8' : undefined,
+            borderColor: receiptSort !== 'none' ? '#1D4ED8' : undefined,
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <ArrowUpDown size={16} /> Receipt {receiptSort === 'desc' ? '↓' : '↑'}
+        </button>
       </div>
 
       {/* Search & Add Bar */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: '1 1 180px', minWidth: 0 }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
           <Search size={18} color="#64748B" style={{ position: 'absolute', left: 14, top: 13 }} />
           <input
             type="text"
@@ -270,17 +284,6 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={() => setReceiptSort(current => current === 'asc' ? 'desc' : 'asc')}
-          title={receiptSort === 'asc' ? 'Receipt number: low to high' : 'Receipt number: high to low'}
-          aria-label={receiptSort === 'asc' ? 'Sort by receipt number descending' : 'Sort by receipt number ascending'}
-          style={{ width: 'auto', padding: '0 12px', borderRadius: 14, whiteSpace: 'nowrap' }}
-        >
-          <ArrowUpDown size={17} /> Receipt {receiptSort === 'desc' ? '↓' : '↑'}
-        </button>
 
         {isAdmin && (
           <button

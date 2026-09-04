@@ -57,20 +57,40 @@ export function generatePDFReport(year, data = {}, scope = 'all') {
         <tr style="background:#FFFBEB;"><td style="padding:11px; border:1px solid #FDE68A; color:#92400E; font-weight:900;">अंतिम शिलक रक्कम (Net Balance / Surplus)</td><td style="padding:11px; border:1px solid #FDE68A; text-align:right; color:#92400E; font-weight:900; font-size:16px;">${fmt(summary.balance)}</td></tr>
       `;
 
-  const donationRows = vargani.length === 0
-    ? '<tr><td colspan="7" style="padding:12px; text-align:center; color:#64748B; border:1px solid #E2E8F0;">वर्गणीची नोंद उपलब्ध नाही.</td></tr>'
-    : vargani.map((v, idx) => {
-      const isPaid = (v.status || 'paid') === 'paid';
-      return `<tr style="${safeBlock}">
-        <td style="padding:6px; border:1px solid #E2E8F0; text-align:center;">${idx + 1}</td>
-        <td style="padding:6px; border:1px solid #E2E8F0;">${escapeHtml(new Date(v.date).toLocaleDateString('mr-IN'))}</td>
-        <td style="padding:6px; border:1px solid #E2E8F0; font-weight:700;">${escapeHtml(v.member_name)}</td>
-        <td style="padding:6px; border:1px solid #E2E8F0;">${escapeHtml(v.receipt_no || '-')}</td>
-        <td style="padding:6px; border:1px solid #E2E8F0; color:${isPaid ? '#15803D' : '#B45309'}; font-weight:800;">${isPaid ? 'Paid' : 'Pending'}</td>
-        <td style="padding:6px; border:1px solid #E2E8F0; color:#64748B;">${escapeHtml(v.note || '-')}</td>
-        <td style="padding:6px; border:1px solid #E2E8F0; text-align:right; color:${isPaid ? '#1D4ED8' : '#B45309'}; font-weight:800;">${fmt(v.amount)}</td>
-      </tr>`;
-    }).join('');
+  const donationPageSize = 20;
+  const donationPages = [];
+  for (let start = 0; start < vargani.length; start += donationPageSize) {
+    donationPages.push(vargani.slice(start, start + donationPageSize));
+  }
+  if (donationPages.length === 0) donationPages.push([]);
+
+  const donationTables = donationPages.map((pageRows, pageIndex) => {
+    const rows = pageRows.length === 0
+      ? '<tr><td colspan="5" style="padding:12px; text-align:center; color:#64748B; border:1px solid #E2E8F0;">वर्गणीची नोंद उपलब्ध नाही.</td></tr>'
+      : pageRows.map((v, rowIndex) => {
+        const isPaid = (v.status || 'paid') === 'paid';
+        return `<tr style="${safeBlock}">
+          <td style="padding:6px 4px; border:1px solid #E2E8F0; text-align:center; width:6%;">${pageIndex * donationPageSize + rowIndex + 1}</td>
+          <td style="padding:6px 4px; border:1px solid #E2E8F0; width:15%;">${escapeHtml(new Date(v.date).toLocaleDateString('mr-IN'))}</td>
+          <td style="padding:6px 4px; border:1px solid #E2E8F0; font-weight:700; width:49%;">${escapeHtml(v.member_name)}</td>
+          <td style="padding:6px 3px; border:1px solid #E2E8F0; width:10%; max-width:10%; overflow-wrap:anywhere;">${escapeHtml(v.receipt_no || '-')}</td>
+          <td style="padding:6px 4px; border:1px solid #E2E8F0; text-align:right; color:${isPaid ? '#1D4ED8' : '#B45309'}; font-weight:800; white-space:nowrap; width:20%;">${isPaid ? '✔️' : '❌'} ${fmt(v.amount)}</td>
+        </tr>`;
+      }).join('');
+
+    return `<div style="${safeBlock} page-break-before:always; margin-bottom:18px;">
+      <table style="width:100%; border-collapse:collapse; font-size:10px; table-layout:fixed; page-break-inside:avoid;">
+        <thead><tr style="background:#EFF6FF; color:#1E40AF;">
+          <th style="padding:6px 4px; border:1px solid #BFDBFE; width:6%;">No.</th>
+          <th style="padding:6px 4px; border:1px solid #BFDBFE; width:15%;">Date</th>
+          <th style="padding:6px 4px; border:1px solid #BFDBFE; width:49%; text-align:left;">Member</th>
+          <th style="padding:6px 3px; border:1px solid #BFDBFE; width:10%;">Receipt</th>
+          <th style="padding:6px 4px; border:1px solid #BFDBFE; width:20%; text-align:right;">Amount</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }).join('');
 
   const otherIncomeRows = jama.length === 0
     ? '<tr><td colspan="5" style="padding:12px; text-align:center; color:#64748B; border:1px solid #E2E8F0;">Other income records are not available.</td></tr>'
@@ -123,8 +143,8 @@ export function generatePDFReport(year, data = {}, scope = 'all') {
 
     ${includeIncome ? `
       <div style="margin-bottom:18px;">
-        <h3 style="color:#1D4ED8; font-size:14px; font-weight:900; border-bottom:2px solid #2563EB; padding-bottom:5px; margin:0 0 9px;">Member Donations (${vargani.length} records)</h3>
-        <table style="width:100%; border-collapse:collapse; font-size:10px; page-break-inside:auto;"><thead><tr style="background:#EFF6FF; color:#1E40AF;"><th style="padding:6px; border:1px solid #BFDBFE; width:28px;">No.</th><th style="padding:6px; border:1px solid #BFDBFE;">Date</th><th style="padding:6px; border:1px solid #BFDBFE;">Member</th><th style="padding:6px; border:1px solid #BFDBFE;">Receipt No.</th><th style="padding:6px; border:1px solid #BFDBFE;">Status</th><th style="padding:6px; border:1px solid #BFDBFE;">Note</th><th style="padding:6px; border:1px solid #BFDBFE; text-align:right;">Amount</th></tr></thead><tbody>${donationRows}</tbody></table>
+        <h3 style="${safeBlock} color:#1D4ED8; font-size:14px; font-weight:900; border-bottom:2px solid #2563EB; padding-bottom:5px; margin:0 0 9px;">Member Donations (${vargani.length} records)</h3>
+        ${donationTables}
       </div>
       <div style="margin-bottom:18px;">
         <h3 style="color:#047857; font-size:14px; font-weight:900; border-bottom:2px solid #059669; padding-bottom:5px; margin:0 0 9px;">Other Income (${jama.length} records)</h3>
@@ -147,7 +167,7 @@ export function generatePDFReport(year, data = {}, scope = 'all') {
     filename: `Rajmudra_Mandal_Ahaval_${String(year).replace(/[^a-z0-9-]/gi, '_')}_${selectedScope}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-    pagebreak: { mode: ['css', 'legacy'] },
+    pagebreak: { mode: ['css', 'legacy'], avoid: ['tr'] },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
   }).from(element).save();
 }
@@ -208,7 +228,7 @@ export function generateAartiSchedulePDF(year, records = []) {
     filename: `आरती_वेळापत्रक_${year}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: { scale: 2, useCORS: true },
-    pagebreak: { mode: ['css', 'legacy'] },
+    pagebreak: { mode: ['css', 'legacy'], avoid: ['tr'] },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
   }).from(element).save();
 }
@@ -263,7 +283,7 @@ export function generateBankTreasuryPDF(entries = []) {
     filename: 'Rajmudra_All_Time_Bank_Treasury_Report.pdf',
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: { scale: 2, useCORS: true },
-    pagebreak: { mode: ['css', 'legacy'] },
+    pagebreak: { mode: ['css', 'legacy'], avoid: ['tr'] },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
   }).from(element).save();
 }
