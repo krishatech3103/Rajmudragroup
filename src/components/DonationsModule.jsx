@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Search, MessageSquare, Edit, Trash2, X, HeartHandshake, Languages, ChevronDown, ChevronUp, History, CheckCircle2, Clock, CreditCard, Banknote, Tag } from 'lucide-react';
+import { Plus, Search, MessageSquare, Edit, Trash2, X, HeartHandshake, Languages, ChevronDown, ChevronUp, History, CheckCircle2, Clock, CreditCard, Banknote, Tag, ArrowUpDown } from 'lucide-react';
 import { generateWhatsAppReceipt } from '../utils/whatsapp';
 import { transliterateText } from '../utils/marathiTransliterate';
 import { createRecord, deleteDonationRecord, findOrCreateMember, updateRecord } from '../services/supabase';
@@ -10,6 +10,7 @@ import ModalPortal from './ModalPortal';
 export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = {}, initialFilter = 'all' }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState(initialFilter); // 'all', 'paid', 'pending'
+  const [receiptSort, setReceiptSort] = useState('none'); // 'none', 'asc', 'desc'
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [selectedMemberHistory, setSelectedMemberHistory] = useState(null);
@@ -42,13 +43,32 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
     setStatusFilter(initialFilter);
   }, [initialFilter]);
 
-  const filtered = varganiList.filter(v => {
+  const filteredBySearch = varganiList.filter(v => {
     const vStatus = v.status || 'paid';
     const matchesSearch = v.member_name.toLowerCase().includes(search.toLowerCase()) ||
                           (v.receipt_no || '').toLowerCase().includes(search.toLowerCase()) ||
                           (v.note || '').toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'all' || vStatus === statusFilter;
     return matchesSearch && matchesStatus;
+  });
+
+  const filtered = [...filteredBySearch].sort((left, right) => {
+    if (receiptSort === 'none') return 0;
+
+    const leftReceipt = String(left.receipt_no || '').trim();
+    const rightReceipt = String(right.receipt_no || '').trim();
+    // Blank receipt numbers remain at the end in either direction.
+    if (!leftReceipt && !rightReceipt) return 0;
+    if (!leftReceipt) return 1;
+    if (!rightReceipt) return -1;
+
+    const leftNumber = Number(leftReceipt);
+    const rightNumber = Number(rightReceipt);
+    const bothNumeric = Number.isFinite(leftNumber) && Number.isFinite(rightNumber);
+    const comparison = bothNumeric
+      ? leftNumber - rightNumber
+      : leftReceipt.localeCompare(rightReceipt, 'en', { numeric: true, sensitivity: 'base' });
+    return receiptSort === 'asc' ? comparison : -comparison;
   });
 
   const openForm = (item = null) => {
@@ -238,8 +258,8 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
       </div>
 
       {/* Search & Add Bar */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-        <div style={{ position: 'relative', flex: 1 }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: '1 1 180px', minWidth: 0 }}>
           <Search size={18} color="#64748B" style={{ position: 'absolute', left: 14, top: 13 }} />
           <input
             type="text"
@@ -250,6 +270,17 @@ export default function DonationsModule({ isAdmin, activeYear, onUpdate, data = 
             onChange={e => setSearch(e.target.value)}
           />
         </div>
+
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => setReceiptSort(current => current === 'asc' ? 'desc' : 'asc')}
+          title={receiptSort === 'asc' ? 'Receipt number: low to high' : 'Receipt number: high to low'}
+          aria-label={receiptSort === 'asc' ? 'Sort by receipt number descending' : 'Sort by receipt number ascending'}
+          style={{ width: 'auto', padding: '0 12px', borderRadius: 14, whiteSpace: 'nowrap' }}
+        >
+          <ArrowUpDown size={17} /> Receipt {receiptSort === 'desc' ? '↓' : '↑'}
+        </button>
 
         {isAdmin && (
           <button

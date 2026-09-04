@@ -554,12 +554,21 @@ export async function fetchExportData() {
     fetchAllTable('bank_fd')
   ]);
 
+  // Keep the two donation fields explicit in backups even for legacy rows
+  // created before status/receipt columns were populated. This makes a JSON
+  // export unambiguous when it is reviewed outside the app.
+  const exportedVargani = vargani.map(record => ({
+    ...record,
+    status: record?.status || 'paid',
+    receipt_no: record?.receipt_no || ''
+  }));
+
   return {
     app: 'Rajmudra Ganesh Utsav Mandal',
     exported_at: new Date().toISOString(),
     settings,
     members,
-    vargani,
+    vargani: exportedVargani,
     jama,
     kharch,
     aarti,

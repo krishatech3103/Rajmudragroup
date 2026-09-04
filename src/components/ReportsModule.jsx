@@ -7,6 +7,7 @@ import CollapsibleSection from './CollapsibleSection';
 export default function ReportsModule({ activeYear, data = {} }) {
   const [subTab, setSubTab] = useState('financials');
   const [memberFilter, setMemberFilter] = useState('paid');
+  const [pdfScope, setPdfScope] = useState('all');
   const ledgerData = data || {};
 
   const summary = calculateSummary(activeYear, ledgerData);
@@ -62,20 +63,34 @@ export default function ReportsModule({ activeYear, data = {} }) {
           </span>
         </div>
 
-        <button
-          onClick={() => generatePDFReport(activeYear, ledgerData)}
-          className="btn btn-gold"
-          style={{
-            flexShrink: 0,
-            padding: '12px 22px',
-            borderRadius: 16,
-            fontSize: 14,
-            fontWeight: 800,
-            boxShadow: '0 8px 20px rgba(255, 215, 0, 0.3)'
-          }}
-        >
-          <Download size={18} /> Download PDF Audit Report
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <label htmlFor="pdf-scope" style={{ fontSize: 11, color: '#CBD5E1', fontWeight: 800 }}>PDF:</label>
+          <select
+            id="pdf-scope"
+            value={pdfScope}
+            onChange={event => setPdfScope(event.target.value)}
+            aria-label="PDF report scope"
+            style={{ minHeight: 44, borderRadius: 14, border: '1px solid rgba(255,255,255,0.2)', background: '#1E293B', color: '#ffffff', padding: '0 10px', fontWeight: 800, fontSize: 12 }}
+          >
+            <option value="all">All (Income + Expense)</option>
+            <option value="income">Income Only</option>
+            <option value="expense">Expense Only</option>
+          </select>
+          <button
+            onClick={() => generatePDFReport(activeYear, ledgerData, pdfScope)}
+            className="btn btn-gold"
+            style={{
+              flexShrink: 0,
+              padding: '12px 16px',
+              borderRadius: 16,
+              fontSize: 13,
+              fontWeight: 800,
+              boxShadow: '0 8px 20px rgba(255, 215, 0, 0.3)'
+            }}
+          >
+            <Download size={18} /> Download PDF
+          </button>
+        </div>
       </div>
 
       {/* Sub Tabs Segmented Bar */}
