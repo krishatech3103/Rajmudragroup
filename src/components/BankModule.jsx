@@ -6,6 +6,7 @@ import { generateBankTreasuryPDF } from '../utils/pdf';
 import ModalPortal from './ModalPortal';
 
 const YEARS = ['2026-27', '2025-26', '2024-25', '2027-28', '2023-24'];
+const TREASURY_TRANSFER_TYPES = new Set(['cash_to_upi', 'upi_to_cash']);
 export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} }) {
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState('All');
@@ -29,6 +30,10 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
   const [renewalExtraSource, setRenewalExtraSource] = useState('Cash');
 
   const fdList = Array.isArray(data.bank_fd) ? data.bank_fd : [];
+  // Cash/UPI transfers are managed from the Dashboard treasury card, not the
+  // bank/FD ledger. Keep them in the shared data for balance calculations but
+  // do not display them as bank entries here.
+  const bankEntries = fdList.filter(item => !TREASURY_TRANSFER_TYPES.has(item?.type));
   const fdSummary = calculateBankFDSummary(fdList);
   const treasuryBalances = calculateTreasuryBalances(activeYear, data);
   const renewedSourceIds = new Set(
@@ -47,7 +52,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
   })).filter(fd => fd.available_amount > 0);
   const renewableFDs = activeFDs;
 
-  const filtered = fdList.filter(item => {
+  const filtered = bankEntries.filter(item => {
     const matchesSearch = String(item.title || '').toLowerCase().includes(search.toLowerCase()) ||
                           (item.bank_name || '').toLowerCase().includes(search.toLowerCase()) ||
                           (item.note || '').toLowerCase().includes(search.toLowerCase());
@@ -333,7 +338,7 @@ export default function BankModule({ isAdmin, activeYear, onUpdate, data = {} })
 
         <button
           className="btn btn-secondary"
-          onClick={() => generateBankTreasuryPDF(fdList)}
+          onClick={() => generateBankTreasuryPDF(bankEntries)}
           style={{ width: 'auto', padding: '0 18px', borderRadius: 16, display: 'flex', alignItems: 'center', gap: 7 }}
         >
           <Download size={18} /> All-Time Report

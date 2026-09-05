@@ -1,11 +1,14 @@
-import React from 'react';
-import { Wallet, ArrowUpRight, ArrowDownRight, Flame, Landmark, ChevronRight, Users, CheckCircle2, Clock } from 'lucide-react';
-import { calculateBankFDSummary, calculateSummary } from '../utils/ledger';
+import React, { useState } from 'react';
+import { Wallet, ArrowUpRight, ArrowDownRight, Flame, Landmark, ChevronRight, Users, CheckCircle2, Clock, ArrowLeftRight, Banknote, CreditCard } from 'lucide-react';
+import { calculateBankFDSummary, calculateSummary, calculateTreasuryBalances } from '../utils/ledger';
 import CollapsibleSection from './CollapsibleSection';
+import TreasuryTransferModal from './TreasuryTransferModal';
 
 export default function Dashboard({ isAdmin, activeYear, onUpdate, onNavigateTab, data = {} }) {
+  const [showTransferModal, setShowTransferModal] = useState(false);
   const ledgerData = data || {};
   const summary = calculateSummary(activeYear, ledgerData);
+  const treasuryBalances = calculateTreasuryBalances(activeYear, ledgerData);
   const aartiList = (Array.isArray(ledgerData.aarti) ? ledgerData.aarti : []).filter(aarti => !activeYear || aarti?.year === activeYear);
   const fdSummary = calculateBankFDSummary(ledgerData.bank_fd);
 
@@ -75,6 +78,30 @@ export default function Dashboard({ isAdmin, activeYear, onUpdate, onNavigateTab
           <h2 style={{ fontSize: 34, fontWeight: 900, margin: '4px 0 0 0', letterSpacing: -0.5, color: '#ffffff' }}>
             Rs. {Number(summary.balance).toLocaleString('en-IN')}
           </h2>
+        </div>
+      </div>
+
+      <div className="luxe-card" style={{ marginBottom: 16, padding: 16, borderRadius: 20, background: 'linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%)', border: '1px solid #BFDBFE' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+          <div>
+            <h3 style={{ margin: 0, color: '#1E3A8A', fontSize: 15, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 7 }}><ArrowLeftRight size={18} /> Cash / UPI Treasury</h3>
+            <p style={{ margin: '3px 0 0', color: '#64748B', fontSize: 11, fontWeight: 600 }}>Current-year operating balances</p>
+          </div>
+          {isAdmin && (
+            <button type="button" className="btn btn-secondary" onClick={() => setShowTransferModal(true)} style={{ width: 'auto', padding: '9px 13px', borderRadius: 12, color: '#1D4ED8', borderColor: '#BFDBFE', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <ArrowLeftRight size={16} /> Transfer
+            </button>
+          )}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div style={{ padding: '10px 12px', borderRadius: 13, background: '#F0FDF4', border: '1px solid #BBF7D0' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#166534', fontSize: 11, fontWeight: 800 }}><Banknote size={15} /> Cash</span>
+            <strong style={{ display: 'block', marginTop: 3, color: '#047857', fontSize: 17 }}>Rs. {treasuryBalances.cash.toLocaleString('en-IN')}</strong>
+          </div>
+          <div style={{ padding: '10px 12px', borderRadius: 13, background: '#EFF6FF', border: '1px solid #BFDBFE' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#1D4ED8', fontSize: 11, fontWeight: 800 }}><CreditCard size={15} /> UPI / Online</span>
+            <strong style={{ display: 'block', marginTop: 3, color: '#1D4ED8', fontSize: 17 }}>Rs. {treasuryBalances.online.toLocaleString('en-IN')}</strong>
+          </div>
         </div>
       </div>
 
@@ -268,6 +295,16 @@ export default function Dashboard({ isAdmin, activeYear, onUpdate, onNavigateTab
           <span style={{ fontWeight: 900, color: '#A7F3D0' }}>View Bank Ledger →</span>
         </div>
       </div>
+
+      {showTransferModal && (
+        <TreasuryTransferModal
+          isAdmin={isAdmin}
+          activeYear={activeYear}
+          data={ledgerData}
+          onUpdate={onUpdate}
+          onClose={() => setShowTransferModal(false)}
+        />
+      )}
     </div>
   );
 }

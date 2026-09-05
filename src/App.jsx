@@ -473,7 +473,7 @@ export default function App() {
           </div>
         )}
 
-        {activeTab === 'dashboard' && <Dashboard isAdmin={isAdmin} activeYear={activeYear} data={data} onNavigateTab={handleTabChange} />}
+        {activeTab === 'dashboard' && <Dashboard isAdmin={isAdmin} activeYear={activeYear} data={data} onUpdate={handleDataChange} onNavigateTab={handleTabChange} />}
         {activeTab === 'vargani' && <DonationsModule isAdmin={isAdmin} activeYear={activeYear} data={data} onUpdate={handleDataChange} initialFilter={donationFilter} />}
         {activeTab === 'aarti' && <AartiModule isAdmin={isAdmin} activeYear={activeYear} data={data} onUpdate={handleDataChange} />}
         {activeTab === 'bank' && <BankModule isAdmin={isAdmin} activeYear={activeYear} data={data} onUpdate={handleDataChange} />}
@@ -482,7 +482,7 @@ export default function App() {
         {activeTab === 'reports' && <ReportsModule activeYear={activeYear} data={data} />}
         {activeTab === 'settings' && (isAdmin
           ? <SettingsModal settings={settings} onClose={() => handleTabChange('dashboard')} onSettingsChange={handleSettingsChange} onUpdate={() => loadYearData(activeYearRef.current)} />
-          : <Dashboard isAdmin={isAdmin} activeYear={activeYear} data={data} onNavigateTab={handleTabChange} />)}
+          : <Dashboard isAdmin={isAdmin} activeYear={activeYear} data={data} onUpdate={handleDataChange} onNavigateTab={handleTabChange} />)}
       </main>
 
       <BottomNav isAdmin={isAdmin} activeTab={activeTab} onChangeTab={handleTabChange} />

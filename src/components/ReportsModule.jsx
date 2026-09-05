@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Download, CheckCircle2, Clock, BarChart2 } from 'lucide-react';
+import { Download, CheckCircle2, Clock, BarChart2, X } from 'lucide-react';
 import { generatePDFReport } from '../utils/pdf';
 import { calculateSummary, getKharchByCategory } from '../utils/ledger';
 import CollapsibleSection from './CollapsibleSection';
+import ModalPortal from './ModalPortal';
 
 export default function ReportsModule({ activeYear, data = {} }) {
   const [subTab, setSubTab] = useState('financials');
   const [memberFilter, setMemberFilter] = useState('paid');
   const [pdfScope, setPdfScope] = useState('all');
+  const [showPdfModal, setShowPdfModal] = useState(false);
   const ledgerData = data || {};
 
   const summary = calculateSummary(activeYear, ledgerData);
@@ -63,34 +65,20 @@ export default function ReportsModule({ activeYear, data = {} }) {
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <label htmlFor="pdf-scope" style={{ fontSize: 11, color: '#CBD5E1', fontWeight: 800 }}>PDF:</label>
-          <select
-            id="pdf-scope"
-            value={pdfScope}
-            onChange={event => setPdfScope(event.target.value)}
-            aria-label="PDF report scope"
-            style={{ minHeight: 44, borderRadius: 14, border: '1px solid rgba(255,255,255,0.2)', background: '#1E293B', color: '#ffffff', padding: '0 10px', fontWeight: 800, fontSize: 12 }}
-          >
-            <option value="all">All (Income + Expense)</option>
-            <option value="income">Income Only</option>
-            <option value="expense">Expense Only</option>
-          </select>
-          <button
-            onClick={() => generatePDFReport(activeYear, ledgerData, pdfScope)}
+        <button
+          onClick={() => setShowPdfModal(true)}
             className="btn btn-gold"
             style={{
               flexShrink: 0,
-              padding: '12px 16px',
+              padding: '12px 20px',
               borderRadius: 16,
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 800,
               boxShadow: '0 8px 20px rgba(255, 215, 0, 0.3)'
             }}
           >
-            <Download size={18} /> Download PDF
-          </button>
-        </div>
+          <Download size={18} /> Download PDF
+        </button>
       </div>
 
       {/* Sub Tabs Segmented Bar */}
@@ -261,6 +249,55 @@ export default function ReportsModule({ activeYear, data = {} }) {
             )
           )}
         </div>
+      )}
+
+      {showPdfModal && (
+        <ModalPortal>
+          <div className="modal-overlay" onClick={() => setShowPdfModal(false)}>
+            <div className="modal-sheet" onClick={event => event.stopPropagation()}>
+              <div className="sheet-pill" />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
+                <h3 style={{ margin: 0, color: '#0F172A', fontSize: 20, fontWeight: 900 }}>Download PDF Report</h3>
+                <button type="button" onClick={() => setShowPdfModal(false)} aria-label="Close PDF report options" style={{ border: 'none', background: 'transparent', padding: 6, cursor: 'pointer' }}>
+                  <X size={22} color="#64748B" />
+                </button>
+              </div>
+              <p style={{ margin: '0 0 16px', color: '#64748B', fontSize: 13, fontWeight: 600 }}>
+                Select the records you want included in the downloadable report.
+              </p>
+              <div style={{ display: 'grid', gap: 10 }}>
+                {[
+                  { value: 'all', title: 'All records', description: 'Income and expenses', color: '#7C3AED' },
+                  { value: 'income', title: 'Income only', description: 'Donations and other income', color: '#047857' },
+                  { value: 'expense', title: 'Expense only', description: 'Expense categories and entries', color: '#B91C1C' }
+                ].map(option => {
+                  const selected = pdfScope === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setPdfScope(option.value)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', padding: '13px 14px', borderRadius: 14, border: selected ? `2px solid ${option.color}` : '1px solid #E2E8F0', background: selected ? `${option.color}12` : '#ffffff', color: '#0F172A', cursor: 'pointer' }}
+                    >
+                      <span style={{ width: 20, height: 20, borderRadius: '50%', border: `2px solid ${selected ? option.color : '#CBD5E1'}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {selected && <span style={{ width: 10, height: 10, borderRadius: '50%', background: option.color }} />}
+                      </span>
+                      <span><strong style={{ display: 'block', fontSize: 14, fontWeight: 900 }}>{option.title}</strong><small style={{ display: 'block', marginTop: 2, color: '#64748B', fontSize: 12, fontWeight: 600 }}>{option.description}</small></span>
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                className="btn btn-gold"
+                onClick={() => { setShowPdfModal(false); generatePDFReport(activeYear, ledgerData, pdfScope); }}
+                style={{ width: '100%', marginTop: 18, padding: '13px 18px', borderRadius: 14, fontSize: 14, fontWeight: 900 }}
+              >
+                <Download size={18} /> Download {pdfScope === 'all' ? 'All' : pdfScope === 'income' ? 'Income' : 'Expense'} Report
+              </button>
+            </div>
+          </div>
+        </ModalPortal>
       )}
     </div>
   );
