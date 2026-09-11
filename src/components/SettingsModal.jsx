@@ -4,10 +4,17 @@ import { countCategoryUsage, fetchExportData, fetchSettings, importData, renameC
 import { validateAndSanitizeBackupData } from '../utils/security';
 import CollapsibleSection from './CollapsibleSection';
 import { getExpenseCategories, getIncomeCategories } from '../utils/categories';
+import { formatAartiDate, isISOCalendarDate } from '../utils/aartiSchedule';
 
 export default function SettingsModal({ settings = {}, onClose, onSettingsChange, onUpdate }) {
   const [activeYear, setActiveYear] = useState(settings.active_year || '2026-27');
   const [isSavingYear, setIsSavingYear] = useState(false);
+  const [aartiStartDates, setAartiStartDates] = useState(() => (
+    settings.aarti_start_dates && typeof settings.aarti_start_dates === 'object' && !Array.isArray(settings.aarti_start_dates)
+      ? { ...settings.aarti_start_dates }
+      : {}
+  ));
+  const [isSavingAartiDate, setIsSavingAartiDate] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [newCategory, setNewCategory] = useState({ income: '', expense: '' });
@@ -35,6 +42,33 @@ export default function SettingsModal({ settings = {}, onClose, onSettingsChange
       alert(`Could not update the active year: ${error.message}`);
     } finally {
       setIsSavingYear(false);
+    }
+  };
+
+  const handleSaveAartiStartDate = async () => {
+    const startDate = aartiStartDates[activeYear] || '';
+    if (!isISOCalendarDate(startDate)) {
+      alert('Please select a valid Aarti start date.');
+      return;
+    }
+
+    setIsSavingAartiDate(true);
+    try {
+      const latestSettings = await fetchSettings();
+      const nextAartiStartDates = {
+        ...(latestSettings.aarti_start_dates && typeof latestSettings.aarti_start_dates === 'object' && !Array.isArray(latestSettings.aarti_start_dates)
+          ? latestSettings.aarti_start_dates
+          : {}),
+        [activeYear]: startDate
+      };
+      const updatedSettings = await saveSettings({ aarti_start_dates: nextAartiStartDates });
+      setAartiStartDates(nextAartiStartDates);
+      await onSettingsChange?.(updatedSettings);
+      alert(`Aarti start date for ${activeYear} saved as ${formatAartiDate(startDate)}.`);
+    } catch (error) {
+      alert(`Could not save the Aarti start date: ${error.message}`);
+    } finally {
+      setIsSavingAartiDate(false);
     }
   };
 
@@ -220,6 +254,35 @@ export default function SettingsModal({ settings = {}, onClose, onSettingsChange
         >
           {years.sort().map(year => <option key={year} value={year}>{year}</option>)}
         </select>
+      </div>
+
+      <div className="luxe-card" style={{ marginBottom: 14 }}>
+        <h4 style={{ fontSize: 14, fontWeight: 800, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, color: '#D84315' }}>
+          <Calendar size={18} /> Aarti Schedule Start Date
+        </h4>
+        <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, margin: '0 0 10px 0', lineHeight: 1.5 }}>
+          This is Day 1 for {activeYear}. The PDF automatically creates all 9 dates and their Marathi weekdays from this date.
+        </p>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'stretch', flexWrap: 'wrap' }}>
+          <input
+            type="date"
+            className="input-field"
+            value={aartiStartDates[activeYear] || ''}
+            onChange={event => setAartiStartDates(current => ({ ...current, [activeYear]: event.target.value }))}
+            disabled={isSavingAartiDate}
+            aria-label={`Aarti schedule start date for ${activeYear}`}
+            style={{ flex: '1 1 190px', minWidth: 0 }}
+          />
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handleSaveAartiStartDate}
+            disabled={isSavingAartiDate || !isISOCalendarDate(aartiStartDates[activeYear])}
+            style={{ width: 'auto', minWidth: 110, padding: '10px 16px', opacity: isSavingAartiDate || !isISOCalendarDate(aartiStartDates[activeYear]) ? 0.6 : 1 }}
+          >
+            <Check size={17} /> {isSavingAartiDate ? 'Saving…' : 'Save Date'}
+          </button>
+        </div>
       </div>
 
       <CollapsibleSection

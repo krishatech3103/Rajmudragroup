@@ -373,14 +373,16 @@ import { Plus, Search, Calendar, Clock, Sun, Moon, Edit, Trash2, X, Flame, Langu
 import { transliterateText } from '../utils/marathiTransliterate';
 import { createRecord, deleteRecord, updateRecord } from '../services/supabase';
 import { generateAartiSchedulePDF } from '../utils/pdf';
+import { buildAartiSchedule, formatAartiDate, getAartiStartDate, getMarathiWeekday } from '../utils/aartiSchedule';
 import ModalPortal from './ModalPortal';
 
-export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }) {
+export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {}, settings = {} }) {
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [expandedAartiId, setExpandedAartiId] = useState(null);
 
   // Form State
@@ -393,10 +395,15 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }
   const [note, setNote] = useState('');
 
   const aartiList = (Array.isArray(data.aarti) ? data.aarti : [])
-    .filter(record => record?.year === activeYear);
+    .filter(record => record?.year === activeYear)
+    .sort((left, right) => String(left.date || '').localeCompare(String(right.date || '')));
+  const aartiStartDate = getAartiStartDate(settings, activeYear);
+  const aartiDays = buildAartiSchedule(activeYear, aartiList, aartiStartDate);
+  const aartiEndDate = aartiDays.at(-1)?.date || '';
+  const isScheduleFull = aartiDays.length > 0 && aartiDays.every(day => day.record);
 
   const filtered = aartiList.filter(a =>
-    a.day_title.toLowerCase().includes(search.toLowerCase()) ||
+    (a.day_title || '').toLowerCase().includes(search.toLowerCase()) ||
     (a.morning_host || '').toLowerCase().includes(search.toLowerCase()) ||
     (a.evening_host || '').toLowerCase().includes(search.toLowerCase())
   );
@@ -413,9 +420,18 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }
       setEveningHost(item.evening_host || '');
       setNote(item.note || '');
     } else {
+      if (!aartiStartDate) {
+        alert(`Set the Aarti schedule start date for ${activeYear} in Settings first.`);
+        return;
+      }
+      const nextDay = aartiDays.find(day => !day.record);
+      if (!nextDay) {
+        alert('All 9 Aarti days have already been added. Edit an existing day if a change is needed.');
+        return;
+      }
       setEditItem(null);
-      setDayTitle(`Day ${aartiList.length + 1}`);
-      setDate(new Date().toISOString().split('T')[0]);
+      setDayTitle(`दिवस ${nextDay.dayNumber}`);
+      setDate(nextDay.date);
       setMorningTime('09.00 AM');
       setMorningHost('');
       setEveningTime('08.00 PM');
@@ -429,6 +445,15 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }
     e.preventDefault();
     if (!dayTitle.trim()) {
       alert('Day title is required!');
+      return;
+    }
+    if (aartiStartDate && !aartiDays.some(day => day.date === date)) {
+      alert(`Choose a date between ${formatAartiDate(aartiStartDate)} and ${formatAartiDate(aartiEndDate)}.`);
+      return;
+    }
+    const duplicateDate = aartiList.find(item => item.date === date && String(item.id) !== String(editItem?.id));
+    if (duplicateDate) {
+      alert('An Aarti schedule already exists for this date. Edit that day instead.');
       return;
     }
 
@@ -491,6 +516,22 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }
     setExpandedAartiId((current) => (current === id ? null : id));
   };
 
+  const handleExportPDF = async () => {
+    if (!aartiStartDate) {
+      alert(`Set the Aarti schedule start date for ${activeYear} in Settings before exporting.`);
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      await generateAartiSchedulePDF(activeYear, aartiList, aartiStartDate);
+    } catch (error) {
+      alert(`Could not export the Aarti schedule: ${error.message}`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div style={{ width: '100%', boxSizing: 'border-box' }} className="animate-fade-in">
       {/* Aarti Banner */}
@@ -512,7 +553,7 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }
             <Flame size={24} color="#FFD700" /> Aarti Schedules
           </h2>
           <span style={{ fontSize: 13, color: '#FFE0B2', fontWeight: 600, marginTop: 4, display: 'block' }}>
-            Daily Aarti Timings, Hosts • Year {activeYear}
+            9 Days • 18 Aarti Rows • Year {activeYear}
           </span>
         </div>
 
@@ -521,12 +562,15 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }
             <button
               className="btn btn-gold"
               onClick={() => openForm()}
+              disabled={isScheduleFull}
+              title={isScheduleFull ? 'All 9 Aarti days have been added' : 'Add Aarti day'}
               style={{
                 padding: '12px 22px',
                 borderRadius: 16,
                 fontSize: 14,
                 fontWeight: 800,
-                boxShadow: '0 8px 20px rgba(255, 215, 0, 0.3)'
+                boxShadow: '0 8px 20px rgba(255, 215, 0, 0.3)',
+                opacity: isScheduleFull ? 0.6 : 1
               }}
             >
               <Plus size={18} /> Add Aarti Day
@@ -534,14 +578,31 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }
           )}
           <button
             className="btn btn-secondary"
-            onClick={() => generateAartiSchedulePDF(activeYear, aartiList)}
-            style={{ padding: '12px 18px', borderRadius: 16, fontSize: 14, fontWeight: 800 }}
+            onClick={handleExportPDF}
+            disabled={isExporting}
+            style={{ padding: '12px 18px', borderRadius: 16, fontSize: 14, fontWeight: 800, opacity: isExporting ? 0.65 : 1 }}
             title="आरती वेळापत्रक PDF डाउनलोड करा"
             aria-label="आरती वेळापत्रक PDF डाउनलोड करा"
           >
-            <Download size={20} />
+            <Download size={20} /> {isExporting ? 'Exporting…' : ''}
           </button>
         </div>
+      </div>
+
+      <div style={{
+        marginBottom: 14,
+        padding: '11px 14px',
+        borderRadius: 14,
+        background: aartiStartDate ? '#FFF7ED' : '#FEF2F2',
+        border: `1px solid ${aartiStartDate ? '#FED7AA' : '#FECACA'}`,
+        color: aartiStartDate ? '#9A3412' : '#B91C1C',
+        fontSize: 12,
+        fontWeight: 700,
+        lineHeight: 1.5
+      }}>
+        {aartiStartDate
+          ? `PDF dates: ${formatAartiDate(aartiStartDate)} (${getMarathiWeekday(aartiStartDate)}) to ${formatAartiDate(aartiEndDate)} (${getMarathiWeekday(aartiEndDate)}). Blank entries will remain writable blank spaces.`
+          : `Aarti start date is not set for ${activeYear}. An admin must set it in Settings before adding days or exporting.`}
       </div>
 
       {/* Search Bar */}
@@ -579,7 +640,7 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }
                 style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, border: 'none', background: 'transparent', padding: 0, textAlign: 'left', cursor: 'pointer' }}
               >
                 <span style={{ fontSize: 12, fontWeight: 800, color: '#D84315', background: '#FFF7ED', border: '1px solid #FFEDD5', padding: '4px 8px', borderRadius: 9, flexShrink: 0 }}>
-                  📅 {new Date(a.date).toLocaleDateString('en-IN')}
+                  📅 {formatAartiDate(a.date) || a.date} {getMarathiWeekday(a.date) ? `• ${getMarathiWeekday(a.date)}` : ''}
                 </span>
                 <h3 style={{ fontSize: 16, fontWeight: 900, margin: 0, color: '#0F172A', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                   {a.day_title}
@@ -738,6 +799,8 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {} }
                   className="input-field"
                   value={date}
                   onChange={e => setDate(e.target.value)}
+                  min={aartiStartDate || undefined}
+                  max={aartiEndDate || undefined}
                 />
               </div>
 

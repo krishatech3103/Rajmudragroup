@@ -1,5 +1,6 @@
 import html2pdf from 'html2pdf.js';
 import { calculateBankFDSummary, calculateSummary, getKharchByCategory, isBankTransferType } from './ledger';
+import { buildAartiSchedule, formatAartiDate, isISOCalendarDate } from './aartiSchedule';
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, character => ({
@@ -176,59 +177,112 @@ const formatDate = (value, locale = 'en-IN') => value
   ? new Date(value).toLocaleDateString(locale)
   : '-';
 
-export function generateAartiSchedulePDF(year, records = []) {
-  const schedule = (Array.isArray(records) ? records : [])
-    .filter(record => record?.year === year)
-    .sort((left, right) => String(left.date || '').localeCompare(String(right.date || '')));
-  const formatAartiDate = (value) => formatDate(value, 'mr-IN');
-  const formatAartiTime = (value) => String(value || '—')
-    .replace(/\bAM\b/gi, 'सकाळी')
-    .replace(/\bPM\b/gi, 'सायंकाळी');
+export function createAartiSchedulePDFElement(year, records = [], startDate = '') {
+  if (!isISOCalendarDate(startDate)) {
+    throw new Error('Set the Aarti schedule start date in Settings before exporting the PDF.');
+  }
+
+  const schedule = buildAartiSchedule(year, records, startDate);
+  const formatAartiTime = (value) => String(value || '')
+    .trim()
+    .replace(/^(सकाळी|सायंकाळी|संध्याकाळी|रात्री)\s*[-:]?\s*/u, '')
+    .replace(/\s*(AM|PM)\s*$/i, '')
+    .replace(/(\d)\.(\d)/g, '$1 : $2')
+    .trim();
+  const renderSessionTime = (label, value) => {
+    const time = formatAartiTime(value);
+    return `${label} - ${time ? escapeHtml(time) : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}`;
+  };
+  const renderName = (host, note = '') => {
+    const safeHost = String(host || '').trim();
+    const safeNote = String(note || '').trim();
+    if (!safeHost && !safeNote) return '&nbsp;';
+    return `${safeHost ? `<span>${escapeHtml(safeHost)}</span>` : ''}${safeNote ? `<span style="${safeHost ? 'display:block; margin-top:1mm;' : ''} font-size:9.8px;">${escapeHtml(safeNote)}</span>` : ''}`;
+  };
   const element = document.createElement('div');
-  element.style.width = '190mm';
-  element.style.padding = '5mm';
+  // html2pdf leaves 6mm on each side of A4, so this exactly fills the remaining
+  // printable area and prevents the application's dark page background showing.
+  element.style.width = '198mm';
+  element.style.minHeight = '285mm';
+  element.style.padding = '3mm';
   element.style.boxSizing = 'border-box';
+  element.style.display = 'flex';
+  element.style.flexDirection = 'column';
+  element.style.border = '1.2px solid #000000';
   element.style.fontFamily = "'Noto Sans Devanagari', 'Outfit', sans-serif";
-  element.style.color = '#1F2937';
+  element.style.color = '#111111';
   element.style.background = '#ffffff';
 
   element.innerHTML = `
-    <div style="${'page-break-inside:avoid; break-inside:avoid;'} text-align:center; border-bottom:2px solid #D84315; padding-bottom:3mm; margin-bottom:3mm;">
-      <div style="font-size:10px; color:#D84315; font-weight:800;">॥ श्री गणेशाय नमः ॥</div>
-      <div style="font-size:17px; color:#9A2A2A; font-weight:900; margin:1mm 0;">राजमुद्रा गणेशोत्सव मंडळ</div>
-      <div style="font-size:11px; font-weight:800;">आरती वेळापत्रक — उत्सव वर्ष ${escapeHtml(year)}</div>
+    <div style="page-break-inside:avoid; break-inside:avoid; text-align:center; margin-bottom:3mm;">
+      <div style="font-size:12.1px; font-weight:800;">॥ श्री गणेशाय नमः ॥</div>
+      <div style="font-size:22.4px; font-weight:900; margin:0.5mm 0;">राजमुद्रा गणेशोत्सव मंडळ</div>
+      <div style="font-size:12.1px; font-weight:800;">उत्सव वर्ष : ${escapeHtml(year)}</div>
+      <div style="display:inline-block; margin-top:1mm; padding:0.8mm 8mm; border-top:1px solid #000000; border-bottom:1px solid #000000; font-size:15.9px; font-weight:900;">आरती वेळापत्रक</div>
     </div>
-    <table style="width:100%; border-collapse:collapse; font-size:8px; table-layout:fixed;">
+    <table style="width:100%; border-collapse:collapse; table-layout:fixed; font-size:11.5px;">
       <thead>
-        <tr style="background:#FFF3E0; color:#9A3412;">
-          <th style="width:12%; padding:5px; border:1px solid #FDBA74;">दिनांक</th>
-          <th style="width:18%; padding:5px; border:1px solid #FDBA74;">दिवस</th>
-          <th style="width:31%; padding:5px; border:1px solid #FDBA74;">सकाळची आरती</th>
-          <th style="width:31%; padding:5px; border:1px solid #FDBA74;">सायंकाळची आरती</th>
-          <th style="width:8%; padding:5px; border:1px solid #FDBA74;">टीप</th>
+        <tr>
+          <th style="width:7%; height:9mm; padding:1mm; border:1.2px solid #000000;">अ. क्र.</th>
+          <th style="width:17%; height:9mm; padding:1mm; border:1.2px solid #000000;">दिनांक</th>
+          <th style="width:18%; height:9mm; padding:1mm; border:1.2px solid #000000;">वेळ</th>
+          <th style="width:58%; height:9mm; padding:1mm; border:1.2px solid #000000;">नाव</th>
         </tr>
       </thead>
-      <tbody>
-        ${schedule.length ? schedule.map((item, index) => `
-          <tr style="page-break-inside:avoid; break-inside:avoid; background:${index % 2 ? '#FFFDF8' : '#FFFFFF'};">
-            <td style="padding:5px; border:1px solid #E5E7EB; font-weight:700;">${escapeHtml(formatAartiDate(item.date))}</td>
-            <td style="padding:5px; border:1px solid #E5E7EB; font-weight:800;">${escapeHtml(item.day_title)}</td>
-            <td style="padding:5px; border:1px solid #E5E7EB;"><b>${escapeHtml(formatAartiTime(item.morning_time))}</b><br>${escapeHtml(item.morning_host || '—')}</td>
-            <td style="padding:5px; border:1px solid #E5E7EB;"><b>${escapeHtml(formatAartiTime(item.evening_time))}</b><br>${escapeHtml(item.evening_host || '—')}</td>
-            <td style="padding:5px; border:1px solid #E5E7EB; font-size:7px;">${escapeHtml(item.note || '—')}</td>
-          </tr>
-        `).join('') : '<tr><td colspan="5" style="padding:15px; border:1px solid #E5E7EB; text-align:center;">आरती वेळापत्रकाची कोणतीही नोंद उपलब्ध नाही.</td></tr>'}
-      </tbody>
     </table>
-    <div style="page-break-inside:avoid; break-inside:avoid; margin-top:3mm; text-align:center; font-size:7px; color:#6B7280;">तयार केले दिनांक ${escapeHtml(formatAartiDate(new Date()))} • गणपती बाप्पा मोरया</div>
+    ${schedule.map((day, index) => {
+      const item = day.record || {};
+      return `
+        <table class="aarti-day" style="width:100%; margin-top:1.6mm; border-collapse:collapse; table-layout:fixed; font-size:11.5px; page-break-inside:avoid; break-inside:avoid;">
+          <tbody>
+            <tr>
+              <td rowspan="2" style="width:7%; height:20mm; padding:1mm; border:1.2px solid #000000; text-align:center; vertical-align:middle; font-weight:900;">${index + 1}</td>
+              <td rowspan="2" style="width:17%; height:20mm; padding:1mm; border:1.2px solid #000000; text-align:center; vertical-align:middle; font-weight:900;">
+                ${escapeHtml(formatAartiDate(day.date))}
+                <span style="display:block; margin-top:0.5mm; font-size:9.8px;">${escapeHtml(day.weekday)}</span>
+              </td>
+              <td style="width:18%; height:10mm; padding:0.8mm 1mm; border:1.2px solid #000000; text-align:center; vertical-align:middle; font-weight:800; white-space:nowrap;">${renderSessionTime('सकाळी', item.morning_time)}</td>
+              <td style="width:58%; height:10mm; padding:0.8mm 1.5mm; border:1.2px solid #000000; text-align:center; vertical-align:middle; font-weight:800;">${renderName(item.morning_host)}</td>
+            </tr>
+            <tr>
+              <td style="width:18%; height:10mm; padding:0.8mm 1mm; border:1.2px solid #000000; text-align:center; vertical-align:middle; font-weight:800; white-space:nowrap;">${renderSessionTime('रात्री', item.evening_time)}</td>
+              <td style="width:58%; height:10mm; padding:0.8mm 1.5mm; border:1.2px solid #000000; text-align:center; vertical-align:middle; font-weight:800;">${renderName(item.evening_host, item.note)}</td>
+            </tr>
+          </tbody>
+        </table>
+      `;
+    }).join('')}
+    <div style="page-break-inside:avoid; break-inside:avoid; margin-top:auto; padding:2.5mm 3mm; border:1.2px solid #000000; text-align:left; font-size:11.3px; line-height:1.55;">
+      <div style="font-size:13.2px; font-weight:900; margin-bottom:1mm; text-decoration:underline;">सूचना</div>
+      <ol style="margin:0; padding-left:5mm;">
+        <li>आरती दिलेल्या वेळेत चालू होईल.</li>
+        <li>सर्वांनी आरतीसाठी वेळेत उपस्थित राहावे.</li>
+        <li>आरतीसाठी येताना प्रसाद असल्यास आणावा, नसल्यास तसे मंडळास कळवावे.</li>
+        <li>काही कारणामुळे आरतीस विलंब अथवा इतर कोणतेही कारण असल्यास मंडळास कळवावे.</li>
+      </ol>
+    </div>
   `;
 
-  html2pdf().set({
-    margin: [5, 5, 5, 5],
+  return element;
+}
+
+export async function generateAartiSchedulePDF(year, records = [], startDate = '') {
+  const element = createAartiSchedulePDFElement(year, records, startDate);
+
+  if (document.fonts?.ready) {
+    // A blocked web-font request must not leave the Export button spinning forever.
+    await Promise.race([
+      document.fonts.ready,
+      new Promise(resolve => window.setTimeout(resolve, 3000))
+    ]);
+  }
+
+  return html2pdf().set({
+    margin: [6, 6, 6, 6],
     filename: `आरती_वेळापत्रक_${year}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true },
-    pagebreak: { mode: ['css', 'legacy'], avoid: ['tr'] },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+    pagebreak: { mode: ['css', 'legacy'], avoid: ['.aarti-day'] },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
   }).from(element).save();
 }

@@ -24,7 +24,8 @@ export const DATA_TABLES = Object.freeze([
 ]);
 
 export const DEFAULT_SETTINGS = Object.freeze({
-  active_year: '2026-27'
+  active_year: '2026-27',
+  aarti_start_dates: Object.freeze({})
 });
 
 const YEAR_TABLES = Object.freeze(['vargani', 'jama', 'kharch', 'aarti', 'bank_fd']);

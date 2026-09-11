@@ -475,7 +475,7 @@ export default function App() {
 
         {activeTab === 'dashboard' && <Dashboard isAdmin={isAdmin} activeYear={activeYear} data={data} onUpdate={handleDataChange} onNavigateTab={handleTabChange} />}
         {activeTab === 'vargani' && <DonationsModule isAdmin={isAdmin} activeYear={activeYear} data={data} onUpdate={handleDataChange} initialFilter={donationFilter} />}
-        {activeTab === 'aarti' && <AartiModule isAdmin={isAdmin} activeYear={activeYear} data={data} onUpdate={handleDataChange} />}
+        {activeTab === 'aarti' && <AartiModule isAdmin={isAdmin} activeYear={activeYear} data={data} settings={settings} onUpdate={handleDataChange} />}
         {activeTab === 'bank' && <BankModule isAdmin={isAdmin} activeYear={activeYear} data={data} onUpdate={handleDataChange} />}
         {activeTab === 'jama' && <IncomeModule isAdmin={isAdmin} activeYear={activeYear} data={data} settings={settings} onUpdate={handleDataChange} />}
         {activeTab === 'kharch' && <ExpensesModule isAdmin={isAdmin} activeYear={activeYear} data={data} settings={settings} onUpdate={handleDataChange} />}
