@@ -97,7 +97,7 @@ export default function PWAInstallBanner() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <img
             src="./ganesh_icon.png"
-            alt="Rajmudra Group Icon"
+            alt="राजमुद्रा गणेश व नवरात्र उत्सव मंडळ चिन्ह"
             style={{
               width: 44,
               height: 44,
@@ -110,7 +110,7 @@ export default function PWAInstallBanner() {
           />
           <div>
             <h4 style={{ fontSize: 15, fontWeight: 900, margin: 0, color: '#ffffff' }}>
-              Rajmudra Group App
+              राजमुद्रा गणेश व नवरात्र उत्सव मंडळ
             </h4>
             <span style={{ fontSize: 12, color: '#FFD700', fontWeight: 800 }}>
               📲 Install App on Phone Home Screen
@@ -139,7 +139,7 @@ export default function PWAInstallBanner() {
               boxShadow: '0 6px 20px rgba(255, 87, 34, 0.45)'
             }}
           >
-            <Download size={18} /> Install Rajmudra App
+            <Download size={18} /> Install Mandal App
           </button>
 
           <button
@@ -174,7 +174,7 @@ export default function PWAInstallBanner() {
                 <Smartphone size={28} color="#ffffff" />
               </div>
               <h3 style={{ fontSize: 18, fontWeight: 900, color: '#0F172A', margin: 0 }}>
-                Rajmudra Group App Installation
+                राजमुद्रा गणेश व नवरात्र उत्सव मंडळ App Installation
               </h3>
               <p style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>
                 Follow these simple steps to install the app on your phone:

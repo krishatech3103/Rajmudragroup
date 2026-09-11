@@ -1,4 +1,4 @@
-# 🚩 राजमुद्रा गणेश उत्सव मंडळ (Rajmudra React PWA App)
+# 🚩 राजमुद्रा गणेश व नवरात्र उत्सव मंडळ (Rajmudra React PWA App)
 
 Supabase-backed accounts, member donations, income/expenses, Aarti schedules, bank FD records, and PDF reports built with React, Vite, and a PWA shell.
 

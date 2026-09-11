@@ -51,7 +51,7 @@ export default class ErrorBoundary extends React.Component {
             </div>
 
             <h3 style={{ fontSize: 20, fontWeight: 900, marginBottom: 8, color: '#ffffff' }}>
-              राजमुद्रा मंडळ अॅप त्रुटी (App Exception)
+              राजमुद्रा गणेश व नवरात्र उत्सव मंडळ अॅप त्रुटी (App Exception)
             </h3>
             <p style={{ fontSize: 13, color: '#94A3B8', lineHeight: 1.5, marginBottom: 20 }}>
               An unexpected application error occurred. Your saved data is unaffected; reload to fetch a fresh view.

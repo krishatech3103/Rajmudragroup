@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { AlertTriangle, Calendar, Check, Download, Pencil, Plus, ShieldCheck, Trash2, Upload, X } from 'lucide-react';
+import { AlertTriangle, Calendar, Check, Clock, Download, Pencil, Plus, ShieldCheck, Trash2, Upload, X } from 'lucide-react';
 import { countCategoryUsage, fetchExportData, fetchSettings, importData, renameCategoryRecords, saveSettings } from '../services/supabase';
 import { validateAndSanitizeBackupData } from '../utils/security';
 import CollapsibleSection from './CollapsibleSection';
 import { getExpenseCategories, getIncomeCategories } from '../utils/categories';
-import { formatAartiDate, isISOCalendarDate } from '../utils/aartiSchedule';
+import { formatAartiDate, getAartiDefaultTimes, isISOCalendarDate } from '../utils/aartiSchedule';
 
 export default function SettingsModal({ settings = {}, onClose, onSettingsChange, onUpdate }) {
   const [activeYear, setActiveYear] = useState(settings.active_year || '2026-27');
@@ -15,6 +15,8 @@ export default function SettingsModal({ settings = {}, onClose, onSettingsChange
       : {}
   ));
   const [isSavingAartiDate, setIsSavingAartiDate] = useState(false);
+  const [aartiDefaultTimes, setAartiDefaultTimes] = useState(() => getAartiDefaultTimes(settings));
+  const [isSavingAartiTimes, setIsSavingAartiTimes] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [newCategory, setNewCategory] = useState({ income: '', expense: '' });
@@ -69,6 +71,30 @@ export default function SettingsModal({ settings = {}, onClose, onSettingsChange
       alert(`Could not save the Aarti start date: ${error.message}`);
     } finally {
       setIsSavingAartiDate(false);
+    }
+  };
+
+  const handleSaveAartiDefaultTimes = async () => {
+    const morningTime = aartiDefaultTimes.morningTime.trim();
+    const eveningTime = aartiDefaultTimes.eveningTime.trim();
+    if (!morningTime || !eveningTime) {
+      alert('Enter both default Morning and Evening Aarti times.');
+      return;
+    }
+
+    setIsSavingAartiTimes(true);
+    try {
+      const updatedSettings = await saveSettings({
+        aarti_default_morning_time: morningTime,
+        aarti_default_evening_time: eveningTime
+      });
+      setAartiDefaultTimes(getAartiDefaultTimes(updatedSettings));
+      await onSettingsChange?.(updatedSettings);
+      alert('Default Aarti times saved. You can still override them for a specific day.');
+    } catch (error) {
+      alert(`Could not save the default Aarti times: ${error.message}`);
+    } finally {
+      setIsSavingAartiTimes(false);
     }
   };
 
@@ -283,6 +309,50 @@ export default function SettingsModal({ settings = {}, onClose, onSettingsChange
             <Check size={17} /> {isSavingAartiDate ? 'Saving…' : 'Save Date'}
           </button>
         </div>
+      </div>
+
+      <div className="luxe-card" style={{ marginBottom: 14 }}>
+        <h4 style={{ fontSize: 14, fontWeight: 800, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, color: '#D84315' }}>
+          <Clock size={18} /> Default Aarti Times
+        </h4>
+        <p style={{ fontSize: 12, color: '#64748B', fontWeight: 600, margin: '0 0 10px 0', lineHeight: 1.5 }}>
+          These times appear for every empty PDF row and prefill a new Aarti day. A specific day can still use different timings.
+        </p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+          <label style={{ flex: '1 1 160px', fontSize: 12, fontWeight: 800, color: '#92400E' }}>
+            Morning
+            <input
+              type="text"
+              className="input-field"
+              value={aartiDefaultTimes.morningTime}
+              onChange={event => setAartiDefaultTimes(current => ({ ...current, morningTime: event.target.value }))}
+              disabled={isSavingAartiTimes}
+              placeholder="e.g. 09.00 AM"
+              style={{ marginTop: 5 }}
+            />
+          </label>
+          <label style={{ flex: '1 1 160px', fontSize: 12, fontWeight: 800, color: '#0369A1' }}>
+            Evening
+            <input
+              type="text"
+              className="input-field"
+              value={aartiDefaultTimes.eveningTime}
+              onChange={event => setAartiDefaultTimes(current => ({ ...current, eveningTime: event.target.value }))}
+              disabled={isSavingAartiTimes}
+              placeholder="e.g. 08.00 PM"
+              style={{ marginTop: 5 }}
+            />
+          </label>
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={handleSaveAartiDefaultTimes}
+          disabled={isSavingAartiTimes || !aartiDefaultTimes.morningTime.trim() || !aartiDefaultTimes.eveningTime.trim()}
+          style={{ width: '100%', padding: '10px 16px', opacity: isSavingAartiTimes || !aartiDefaultTimes.morningTime.trim() || !aartiDefaultTimes.eveningTime.trim() ? 0.6 : 1 }}
+        >
+          <Check size={17} /> {isSavingAartiTimes ? 'Saving…' : 'Save Default Times'}
+        </button>
       </div>
 
       <CollapsibleSection

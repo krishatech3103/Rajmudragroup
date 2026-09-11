@@ -8,7 +8,7 @@ export function generateWhatsAppReceipt(vargani, year) {
   const paymentModeText = vargani.payment_mode === 'UPI' ? 'ऑनलाईन (UPI)' : 'रोख (Cash)';
   const isPaid = (vargani.status || 'paid') === 'paid';
 
-  let text = `🚩 *राजमुद्रा गणेश उत्सव मंडळ (${year})* 🚩\n\n`;
+  let text = `🚩 *राजमुद्रा गणेश व नवरात्र उत्सव मंडळ (${year})* 🚩\n\n`;
   text += `${prefix} *${vargani.member_name}*\n`;
 
   if (isPaid) {

@@ -1,7 +1,7 @@
 {
-  "name": "Rajmudra Group - राजमुद्रा ग्रुप",
-  "short_name": "Rajmudra Group",
-  "description": "Rajmudra Group Ganesh Mandal Accounts, Vargani & Bank FD Management System",
+  "name": "राजमुद्रा गणेश व नवरात्र उत्सव मंडळ",
+  "short_name": "राजमुद्रा उत्सव मंडळ",
+  "description": "राजमुद्रा गणेश व नवरात्र उत्सव मंडळ Accounts, Vargani & Bank FD Management System",
   "start_url": "./",
   "id": "./",
   "display": "standalone",

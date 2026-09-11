@@ -25,7 +25,9 @@ export const DATA_TABLES = Object.freeze([
 
 export const DEFAULT_SETTINGS = Object.freeze({
   active_year: '2026-27',
-  aarti_start_dates: Object.freeze({})
+  aarti_start_dates: Object.freeze({}),
+  aarti_default_morning_time: '09.00 AM',
+  aarti_default_evening_time: '08.00 PM'
 });
 
 const YEAR_TABLES = Object.freeze(['vargani', 'jama', 'kharch', 'aarti', 'bank_fd']);
@@ -565,7 +567,7 @@ export async function fetchExportData() {
   }));
 
   return {
-    app: 'Rajmudra Ganesh Utsav Mandal',
+    app: 'Rajmudra Ganesh & Navratra Utsav Mandal',
     exported_at: new Date().toISOString(),
     settings,
     members,

@@ -1,4 +1,8 @@
 export const AARTI_DAY_COUNT = 9;
+export const DEFAULT_AARTI_TIMES = Object.freeze({
+  morningTime: '09.00 AM',
+  eveningTime: '08.00 PM'
+});
 
 const MARATHI_WEEKDAYS = Object.freeze([
   'रविवार',
@@ -53,6 +57,16 @@ export function getAartiStartDate(settings = {}, year = '') {
   }
 
   return '';
+}
+
+export function getAartiDefaultTimes(settings = {}) {
+  const morningTime = String(settings?.aarti_default_morning_time || '').trim();
+  const eveningTime = String(settings?.aarti_default_evening_time || '').trim();
+
+  return {
+    morningTime: morningTime || DEFAULT_AARTI_TIMES.morningTime,
+    eveningTime: eveningTime || DEFAULT_AARTI_TIMES.eveningTime
+  };
 }
 
 export function getAartiDateRange(startDate) {

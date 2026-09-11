@@ -88,7 +88,7 @@ export default function PinModal({ onLogin, availableYears = [], isLoading = fal
   if (isLoading && !loadError) {
     return (
       <div style={{ position: 'fixed', inset: 0, background: 'radial-gradient(circle at center, #1E293B 0%, #0F172A 70%, #020617 100%)', zIndex: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }} aria-live="polite">
-        <img src="./ganesh_icon.png" alt="Rajmudra Group Emblem" style={{ width: 84, height: 84, borderRadius: 28, objectFit: 'cover', border: '2px solid #FFD700', marginBottom: 20, boxShadow: '0 14px 40px rgba(255, 87, 34, 0.5)' }} />
+        <img src="./ganesh_icon.png" alt="राजमुद्रा गणेश व नवरात्र उत्सव मंडळ चिन्ह" style={{ width: 84, height: 84, borderRadius: 28, objectFit: 'cover', border: '2px solid #FFD700', marginBottom: 20, boxShadow: '0 14px 40px rgba(255, 87, 34, 0.5)' }} />
         <LoaderCircle size={32} color="#FCD34D" style={{ animation: 'rajmudra-spin 1s linear infinite' }} />
         <p style={{ color: '#E2E8F0', fontSize: 16, fontWeight: 800, marginTop: 14 }}>Signing in…</p>
       </div>
@@ -106,8 +106,8 @@ export default function PinModal({ onLogin, availableYears = [], isLoading = fal
 
       <div style={{ width: '100%', maxWidth: 400, position: 'relative', zIndex: 2 }} className="animate-fade-in">
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <img src="./ganesh_icon.png" alt="Rajmudra Group Emblem" style={{ width: 84, height: 84, borderRadius: 28, objectFit: 'cover', border: '2px solid #FFD700', margin: '0 auto 14px auto', boxShadow: '0 14px 40px rgba(255, 87, 34, 0.5)' }} />
-          <h1 style={{ color: '#ffffff', fontSize: 26, fontWeight: 900, letterSpacing: -0.5 }}>Rajmudra Group</h1>
+          <img src="./ganesh_icon.png" alt="राजमुद्रा गणेश व नवरात्र उत्सव मंडळ चिन्ह" style={{ width: 84, height: 84, borderRadius: 28, objectFit: 'cover', border: '2px solid #FFD700', margin: '0 auto 14px auto', boxShadow: '0 14px 40px rgba(255, 87, 34, 0.5)' }} />
+          <h1 style={{ color: '#ffffff', fontSize: 26, fontWeight: 900, letterSpacing: -0.5 }}>राजमुद्रा गणेश व नवरात्र उत्सव मंडळ</h1>
           <p style={{ color: '#94A3B8', fontSize: 14, fontWeight: 600, marginTop: 4 }}>Accounts & Finance Portal</p>
         </div>
 

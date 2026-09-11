@@ -53,7 +53,7 @@ export default function MobileDrawer({ isOpen, onClose, isAdmin, activeTab, onCh
             />
             <div>
               <h3 style={{ fontSize: 15, fontWeight: 900, color: '#ffffff', margin: 0 }}>
-                Rajmudra Group
+                राजमुद्रा गणेश व नवरात्र उत्सव मंडळ
               </h3>
               <div style={{
                 display: 'inline-flex', alignItems: 'center', gap: 4,

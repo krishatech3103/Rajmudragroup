@@ -373,7 +373,7 @@ import { Plus, Search, Calendar, Clock, Sun, Moon, Edit, Trash2, X, Flame, Langu
 import { transliterateText } from '../utils/marathiTransliterate';
 import { createRecord, deleteRecord, updateRecord } from '../services/supabase';
 import { generateAartiSchedulePDF } from '../utils/pdf';
-import { buildAartiSchedule, formatAartiDate, getAartiStartDate, getMarathiWeekday } from '../utils/aartiSchedule';
+import { buildAartiSchedule, formatAartiDate, getAartiDefaultTimes, getAartiStartDate, getMarathiWeekday } from '../utils/aartiSchedule';
 import ModalPortal from './ModalPortal';
 
 export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {}, settings = {} }) {
@@ -388,9 +388,9 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {}, 
   // Form State
   const [dayTitle, setDayTitle] = useState('Day 1 (Sthapana)');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [morningTime, setMorningTime] = useState('09.00 AM');
+  const [morningTime, setMorningTime] = useState(() => getAartiDefaultTimes(settings).morningTime);
   const [morningHost, setMorningHost] = useState('');
-  const [eveningTime, setEveningTime] = useState('08.00 PM');
+  const [eveningTime, setEveningTime] = useState(() => getAartiDefaultTimes(settings).eveningTime);
   const [eveningHost, setEveningHost] = useState('');
   const [note, setNote] = useState('');
 
@@ -398,6 +398,7 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {}, 
     .filter(record => record?.year === activeYear)
     .sort((left, right) => String(left.date || '').localeCompare(String(right.date || '')));
   const aartiStartDate = getAartiStartDate(settings, activeYear);
+  const aartiDefaultTimes = getAartiDefaultTimes(settings);
   const aartiDays = buildAartiSchedule(activeYear, aartiList, aartiStartDate);
   const aartiEndDate = aartiDays.at(-1)?.date || '';
   const isScheduleFull = aartiDays.length > 0 && aartiDays.every(day => day.record);
@@ -414,9 +415,9 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {}, 
       setEditItem(item);
       setDayTitle(item.day_title);
       setDate(item.date || new Date().toISOString().split('T')[0]);
-      setMorningTime(item.morning_time || '09.00 AM');
+      setMorningTime(item.morning_time || aartiDefaultTimes.morningTime);
       setMorningHost(item.morning_host || '');
-      setEveningTime(item.evening_time || '08.00 PM');
+      setEveningTime(item.evening_time || aartiDefaultTimes.eveningTime);
       setEveningHost(item.evening_host || '');
       setNote(item.note || '');
     } else {
@@ -432,9 +433,9 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {}, 
       setEditItem(null);
       setDayTitle(`दिवस ${nextDay.dayNumber}`);
       setDate(nextDay.date);
-      setMorningTime('09.00 AM');
+      setMorningTime(aartiDefaultTimes.morningTime);
       setMorningHost('');
-      setEveningTime('08.00 PM');
+      setEveningTime(aartiDefaultTimes.eveningTime);
       setEveningHost('');
       setNote('');
     }
@@ -496,11 +497,13 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {}, 
   // Build authentic Marathi Aarti Notice message for WhatsApp
   const buildAartiNoticeText = (item, type = 'morning') => {
     const isMorning = type === 'morning';
-    const timeText = isMorning ? (item.morning_time || '09.00 वा.') : (item.evening_time || '08.00 वा.');
+    const timeText = isMorning
+      ? (item.morning_time || aartiDefaultTimes.morningTime)
+      : (item.evening_time || aartiDefaultTimes.eveningTime);
     const sessionText = isMorning ? 'सकाळी' : 'संध्याकाळी';
     const hostText = isMorning ? (item.morning_host || 'साळुंखे व पुजारी परिवार') : (item.evening_host || 'मंडळ परिवार');
 
-    return `*🚩 राजमुद्रा गणेशोत्सव मंडळ 🚩*\n` +
+    return `*🚩 राजमुद्रा गणेश व नवरात्र उत्सव मंडळ 🚩*\n` +
       `*🙏उद्या ${sessionText} ठिक ${timeText} ${hostText} यांच्या हस्ते आरती संपन्न होईल, कृपया सर्वांनी वेळेत हजर रहावे.🙏*\n` +
       `*🌸 गणपति बाप्पा मोरया 🌸*`;
   };
@@ -524,7 +527,7 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {}, 
 
     setIsExporting(true);
     try {
-      await generateAartiSchedulePDF(activeYear, aartiList, aartiStartDate);
+      await generateAartiSchedulePDF(activeYear, aartiList, aartiStartDate, settings);
     } catch (error) {
       alert(`Could not export the Aarti schedule: ${error.message}`);
     } finally {
@@ -660,7 +663,7 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {}, 
                       <Sun size={16} color="#D97706" /> Morning Aarti
                     </span>
                     <span style={{ fontSize: 12, fontWeight: 900, color: '#78350F', background: '#ffffff', padding: '2px 8px', borderRadius: 8 }}>
-                      <Clock size={12} style={{ display: 'inline', marginRight: 3 }} />{a.morning_time || '09.00 AM'}
+                      <Clock size={12} style={{ display: 'inline', marginRight: 3 }} />{a.morning_time || aartiDefaultTimes.morningTime}
                     </span>
                   </div>
                   <p style={{ fontSize: 15, fontWeight: 900, margin: '0 0 10px 0', color: '#451A03' }}>
@@ -695,7 +698,7 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {}, 
                       <Moon size={16} color="#0284C7" /> Evening Aarti
                     </span>
                     <span style={{ fontSize: 12, fontWeight: 900, color: '#0C4A6E', background: '#ffffff', padding: '2px 8px', borderRadius: 8 }}>
-                      <Clock size={12} style={{ display: 'inline', marginRight: 3 }} />{a.evening_time || '08.00 PM'}
+                      <Clock size={12} style={{ display: 'inline', marginRight: 3 }} />{a.evening_time || aartiDefaultTimes.eveningTime}
                     </span>
                   </div>
                   <p style={{ fontSize: 15, fontWeight: 900, margin: '0 0 10px 0', color: '#0C4A6E' }}>

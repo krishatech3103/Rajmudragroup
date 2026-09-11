@@ -47,7 +47,7 @@ export default function Navbar({ isAdmin, activeYear, activeTab, onChangeTab, on
 
             <div>
               <h1 style={{ fontSize: 16, fontWeight: 900, margin: 0, color: '#ffffff', letterSpacing: -0.3 }}>
-                Rajmudra Group
+                राजमुद्रा गणेश व नवरात्र उत्सव मंडळ
               </h1>
 
               {/* Static Small Year Text */}
