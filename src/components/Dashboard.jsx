@@ -1,21 +1,79 @@
 import React, { useState } from 'react';
-import { Wallet, ArrowUpRight, ArrowDownRight, Flame, Landmark, ChevronRight, Users, CheckCircle2, Clock, ArrowLeftRight, Banknote, CreditCard } from 'lucide-react';
+import { Wallet, ArrowUpRight, ArrowDownRight, Flame, Landmark, ChevronRight, Users, CheckCircle2, Clock, ArrowLeftRight, Banknote, CreditCard, Copy, Check, Sun, Moon } from 'lucide-react';
 import { calculateBankFDSummary, calculateSummary, calculateTreasuryBalances } from '../utils/ledger';
 import CollapsibleSection from './CollapsibleSection';
 import TreasuryTransferModal from './TreasuryTransferModal';
+import { getAartiDefaultTimes, formatAartiDate, getMarathiWeekday } from '../utils/aartiSchedule';
+import { buildAartiNoticeText } from '../utils/aartiNotice';
 
-export default function Dashboard({ isAdmin, activeYear, onUpdate, onNavigateTab, data = {} }) {
+function getSessionDateTime(date, time) {
+  const match = String(time || '').trim().match(/^(\d{1,2})(?:[:.](\d{2}))?\s*(AM|PM)?$/i);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || '')) || !match) return null;
+
+  const [, hourText, minuteText = '0', period = ''] = match;
+  let hour = Number(hourText);
+  const minute = Number(minuteText);
+  if (hour > 23 || minute > 59) return null;
+
+  if (period) {
+    if (hour < 1 || hour > 12) return null;
+    if (period.toUpperCase() === 'PM' && hour !== 12) hour += 12;
+    if (period.toUpperCase() === 'AM' && hour === 12) hour = 0;
+  }
+
+  const [year, month, day] = date.split('-').map(Number);
+  return new Date(year, month - 1, day, hour, minute);
+}
+
+function getUpcomingAartiSession(records, defaultTimes, now = new Date()) {
+  const sessions = records.flatMap((record) => [
+    {
+      record,
+      type: 'morning',
+      time: record.morning_time || defaultTimes.morningTime
+    },
+    {
+      record,
+      type: 'evening',
+      time: record.evening_time || defaultTimes.eveningTime
+    }
+  ]).map(session => ({
+    ...session,
+    startsAt: getSessionDateTime(session.record.date, session.time)
+  })).filter(session => session.startsAt && session.startsAt.getTime() > now.getTime());
+
+  return sessions.sort((left, right) => left.startsAt - right.startsAt)[0] || null;
+}
+
+function getLocalDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export default function Dashboard({ isAdmin, activeYear, onUpdate, onNavigateTab, data = {}, settings = {} }) {
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [copiedAartiKey, setCopiedAartiKey] = useState('');
   const ledgerData = data || {};
   const summary = calculateSummary(activeYear, ledgerData);
   const treasuryBalances = calculateTreasuryBalances(activeYear, ledgerData);
   const aartiList = (Array.isArray(ledgerData.aarti) ? ledgerData.aarti : []).filter(aarti => !activeYear || aarti?.year === activeYear);
   const fdSummary = calculateBankFDSummary(ledgerData.bank_fd);
+  const aartiDefaultTimes = getAartiDefaultTimes(settings);
+  const upcomingAarti = getUpcomingAartiSession(aartiList, aartiDefaultTimes);
 
   const isPositive = summary.balance >= 0;
   const fmt = (v) => `Rs. ${Number(v).toLocaleString('en-IN')}`;
 
-  const latestAarti = aartiList.length > 0 ? aartiList[0] : null;
+  const copyUpcomingAartiNotice = () => {
+    if (!upcomingAarti) return;
+    const copyKey = `${upcomingAarti.record.id}_${upcomingAarti.type}`;
+    const dayLabel = upcomingAarti.record.date === getLocalDateKey() ? 'आज' : 'उद्या';
+    navigator.clipboard.writeText(buildAartiNoticeText(upcomingAarti.record, upcomingAarti.type, aartiDefaultTimes, dayLabel));
+    setCopiedAartiKey(copyKey);
+    setTimeout(() => setCopiedAartiKey(''), 2500);
+  };
 
   return (
     <div style={{ width: '100%', boxSizing: 'border-box' }} className="animate-fade-in">
@@ -210,41 +268,35 @@ export default function Dashboard({ isAdmin, activeYear, onUpdate, onNavigateTab
       </div>
       </CollapsibleSection>
 
-      {/* Today's Aarti Yajman Card (Visible to Viewers & Admin) */}
-      {latestAarti && (
-        <div
-          className="luxe-card"
-          onClick={() => { if (onNavigateTab) onNavigateTab('aarti'); }}
-          style={{
-            padding: 16,
-            borderRadius: 20,
-            background: 'linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)',
-            border: '1px solid #FFD700',
-            marginBottom: 16,
-            cursor: 'pointer'
-          }}
+      {upcomingAarti && (
+        <CollapsibleSection
+          title="पुढील आरती"
+          summary={`${formatAartiDate(upcomingAarti.record.date)} • ${upcomingAarti.type === 'morning' ? 'सकाळी' : 'संध्याकाळी'} ${upcomingAarti.time}`}
+          defaultOpen
+          style={{ marginBottom: 16, border: '1px solid #FCD34D', background: 'linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)' }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{
-                width: 38, height: 38, borderRadius: 12, background: '#FF5722',
-                color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>
-                <Flame size={20} />
+              <div style={{ width: 40, height: 40, borderRadius: 13, background: '#FF5722', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {upcomingAarti.type === 'morning' ? <Sun size={20} /> : <Moon size={20} />}
               </div>
               <div>
-                <span style={{ fontSize: 11, color: '#C2410C', fontWeight: 800, textTransform: 'uppercase' }}>
-                  Aarti Schedule • {latestAarti.slot === 'morning' ? 'Morning (सकाळ)' : 'Evening (संध्याकाळ)'}
+                <span style={{ display: 'block', fontSize: 11, color: '#C2410C', fontWeight: 900 }}>
+                  {formatAartiDate(upcomingAarti.record.date)} • {getMarathiWeekday(upcomingAarti.record.date)} • {upcomingAarti.type === 'morning' ? 'सकाळची आरती' : 'संध्याकाळची आरती'} • {upcomingAarti.time}
                 </span>
-                <h4 style={{ fontSize: 16, fontWeight: 900, margin: '2px 0 0 0', color: '#7C2D12' }}>
-                  {latestAarti.yajman_name}
-                </h4>
+                <strong style={{ display: 'block', marginTop: 3, color: '#7C2D12', fontSize: 16 }}>
+                  {upcomingAarti.type === 'morning'
+                    ? (upcomingAarti.record.morning_host || 'आरतीधारक ठरवायचा आहे')
+                    : (upcomingAarti.record.evening_host || 'आरतीधारक ठरवायचा आहे')}
+                </strong>
               </div>
             </div>
-
-            <ChevronRight size={20} color="#C2410C" />
+            <button type="button" className="btn btn-secondary" onClick={copyUpcomingAartiNotice} style={{ width: 'auto', padding: '9px 12px', borderRadius: 12, color: '#9A3412', borderColor: '#FDBA74', background: '#ffffff' }}>
+              {copiedAartiKey === `${upcomingAarti.record.id}_${upcomingAarti.type}` ? <Check size={16} /> : <Copy size={16} />}
+              {copiedAartiKey === `${upcomingAarti.record.id}_${upcomingAarti.type}` ? 'Copied' : 'Copy Notice'}
+            </button>
           </div>
-        </div>
+        </CollapsibleSection>
       )}
 
       {/* Mandal Bank / FD is useful less often, so it remains at the end. */}
