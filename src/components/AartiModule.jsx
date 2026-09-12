@@ -127,14 +127,18 @@ export default function AartiModule({ isAdmin, activeYear, onUpdate, data = {}, 
   // Build authentic Marathi Aarti Notice message for WhatsApp
   const buildAartiNoticeText = (item, type = 'morning') => {
     const isMorning = type === 'morning';
-    const timeText = isMorning
+    const rawTime = isMorning
       ? (item.morning_time || aartiDefaultTimes.morningTime)
       : (item.evening_time || aartiDefaultTimes.eveningTime);
+    const timeText = String(rawTime || '')
+      .replace(/\b(?:AM|PM)\b/gi, '')
+      .replace(/\s*वा\.?\s*$/u, '')
+      .trim();
     const sessionText = isMorning ? 'सकाळी' : 'संध्याकाळी';
     const hostText = isMorning ? (item.morning_host || '1 व 2 परिवार') : (item.evening_host || 'मंडळ परिवार');
 
     return `*🚩 राजमुद्रा गणेश व नवरात्र उत्सव मंडळ 🚩*\n` +
-      `*🙏उद्या ${sessionText} ठिक ${timeText} ${hostText} यांच्या परिवाराच्या हस्ते आरती संपन्न होईल, कृपया सर्वांनी वेळेत हजर रहावे.🙏*\n` +
+      `*🙏उद्या ${sessionText} ठिक ${timeText ? `${timeText} वा.` : 'वेळ'} ${hostText} यांच्या परिवाराच्या हस्ते आरती संपन्न होईल, कृपया सर्वांनी वेळेत हजर रहावे.🙏*\n` +
       `*🌸 गणपति बाप्पा मोरया 🌸*`;
   };
 
